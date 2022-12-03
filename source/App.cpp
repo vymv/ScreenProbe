@@ -135,20 +135,20 @@ void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
 
 		// RW Buffer
 		// World position
-		screenProbeWSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeWsPosition", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
-		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeWSPosBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
+		screenProbeWSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeWsPosition", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeWSPosBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
 		// Screen position
-		screenProbeSSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeSsPosition", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
-		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeSSPosBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
+		screenProbeSSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeSsPosition", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeSSPosBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
 		// Header
 		screenTileAdaptiveProbeHeaderTexture = Texture::createEmpty("ScreenTileAdaptiveProbeHeader", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor, ImageFormat::R32UI());
 		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeHeaderBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor, ImageFormat::R32UI());
 		// Index
-		screenTileAdaptiveProbeIndicesTexture = Texture::createEmpty("ScreenTileAdaptiveProbeIndices", rd->viewport().width(), rd->viewport().height(), ImageFormat::R16UI());
-		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeIndicesBuffer = GLPixelTransferBuffer::create(rd->viewport().width(), rd->viewport().height(), ImageFormat::R16UI());
+		screenTileAdaptiveProbeIndicesTexture = Texture::createEmpty("ScreenTileAdaptiveProbeIndices", rd->viewport().width(), rd->viewport().height(), ImageFormat::R32UI());
+		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeIndicesBuffer = GLPixelTransferBuffer::create(rd->viewport().width(), rd->viewport().height(), ImageFormat::R32UI());
 		// Num
-		numAdaptiveScreenProbesTexture = Texture::createEmpty("NumAdaptiveScreenProbes", 1, 1, ImageFormat::RGB32F());
-		shared_ptr<GLPixelTransferBuffer>& numAdaptiveScreenProbesBuffer = GLPixelTransferBuffer::create(1, 1, ImageFormat::RGB32F());
+		numAdaptiveScreenProbesTexture = Texture::createEmpty("NumAdaptiveScreenProbes", 1, 1, ImageFormat::R32UI());
+		shared_ptr<GLPixelTransferBuffer>& numAdaptiveScreenProbesBuffer = GLPixelTransferBuffer::create(1, 1, ImageFormat::R32UI());
 		
 		//do {
 			placementDownsampleFactor /= 2;

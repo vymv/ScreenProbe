@@ -6,11 +6,11 @@
 layout(local_size_variable) in;
 
 layout(std430, binding=0) buffer adaptiveProbeWSPosition {
-    vec3 adaptiveProbeWSPosData[];
+    vec4 adaptiveProbeWSPosData[];
 };
 
 layout(std430, binding=1) buffer adaptiveProbeSSPosition {
-    vec3 adaptiveProbeSSPosData[];
+    vec4 adaptiveProbeSSPosData[];
 };
 
 layout(std430, binding=2) buffer screenTileHeader {
@@ -22,7 +22,7 @@ layout(std430, binding=3) buffer screenTileAdaptiveProbeIndices {
 };
 
 layout(std430, binding=4) buffer adaptiveProbeNum {
-    vec3 probeNum;
+    int probeNum;
 };
 
 // Uniform
@@ -127,7 +127,6 @@ void CalculateUpsampleInterpolationWeights(ivec2 screenCoord, vec3 wsPosition, f
             // 之前已经计算过均匀的probe带来的weight，下面试试取Adaptive probe插值
             for (int adaptiveProbeListIndex = 0; adaptiveProbeListIndex < numAdaptiveProbes; adaptiveProbeListIndex++)
             {
-                // TODO
                 ivec2 adaptiveProbeCoord = GetAdaptiveProbeCoord(screenTileCoord, adaptiveProbeListIndex);
 
                 int adaptiveProbeIndex = screenTileProbeIndex[(int)(adaptiveProbeCoord.y * viewport_width + adaptiveProbeCoord.x)];
@@ -171,6 +170,10 @@ void main () {
     // uniform position
     ivec2 screenCoord = ivec2(gl_GlobalInvocationID.xy) * placementDownsampleFactor;
 
+    if(gl_LocalInvocationIndex == 0){
+        probeNum = 0;
+    }
+
     if((screenCoord.x < viewport_width && screenCoord.y < viewport_height) && 
         ((gl_GlobalInvocationID.x & 0x1) != 0 || (gl_GlobalInvocationID.y & 0x1) != 0))
     {
@@ -192,16 +195,15 @@ void main () {
 
         if (!lightingIsValid)
         {
-            // 加入List TODO：原子性操作
-            adaptiveProbeWSPosData[(int)probeNum.r] = wsPosition;
-            adaptiveProbeSSPosData[(int)probeNum.r] = vec3(screenCoord.x,screenCoord.y,0);
+            int Gindex = atomicAdd(probeNum, 1);
+            adaptiveProbeWSPosData[Gindex] = vec4(wsPosition,0.0f);
+            adaptiveProbeSSPosData[Gindex] = vec4(screenCoord.x,screenCoord.y, 0, 0);
 
             int tileid = int(screenCoord.y / screenProbeDownsampleFactor * viewport_width / screenProbeDownsampleFactor + screenCoord.x / screenProbeDownsampleFactor);
-            screenTileHeaderData[tileid] = screenTileHeaderData[tileid] + 1;
-            ivec2 adaptiveProbeCoord = GetAdaptiveProbeCoord(ivec2(screenCoord.x / screenProbeDownsampleFactor, screenCoord.y / screenProbeDownsampleFactor), screenTileHeaderData[tileid] - 1);
-            screenTileProbeIndex[(int)(adaptiveProbeCoord.y * viewport_width + adaptiveProbeCoord.x)] = (int) probeNum.r;
-
-            probeNum.r = probeNum.r + 1;
+            int Tindex = atomicAdd(screenTileHeaderData[tileid], 1);
+            ivec2 adaptiveProbeCoord = GetAdaptiveProbeCoord(ivec2(screenCoord.x / screenProbeDownsampleFactor, screenCoord.y / screenProbeDownsampleFactor), Tindex);
+            screenTileProbeIndex[(int)(adaptiveProbeCoord.y * viewport_width + adaptiveProbeCoord.x)] = Gindex;
+            
         }
     }
 }
