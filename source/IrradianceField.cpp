@@ -611,3 +611,5 @@ void IrradianceField::generateIrradianceProbes(RenderDevice* rd)
 	oldIrradianceSide = irradianceSide;
 	oldDepthSide = depthSide;
 }
+
+

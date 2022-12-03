@@ -11,8 +11,8 @@ int main(int argc, const char* argv[])
 	settings.window.caption = argv[0];
 
 	settings.window.fullScreen = false;
-	settings.window.width = 1400;
-	settings.window.height = 1000;
+	settings.window.width = 1600;
+	settings.window.height = 960;
 	settings.window.resizable = !settings.window.fullScreen;
 	settings.window.framed = !settings.window.fullScreen;
 	settings.window.defaultIconFilename = "icon.png";
@@ -55,7 +55,8 @@ void App::onInit()
 	m_pGIRenderer->setDeferredShading(true);
 	m_pGIRenderer->setOrderIndependentTransparency(true);
 
-	String SceneName = "Dragon (Dynamic Light Source)";
+	//String SceneName = "Dragon (Dynamic Light Source)";
+	String SceneName = "G3D Breakfast Room";
 	loadScene(SceneName);
 
 	m_renderer = m_pGIRenderer;
@@ -68,10 +69,40 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 	if (m_pIrradianceField)
 	{
 		m_pIrradianceField->onGraphics3D(rd, surface3D);
-		m_pIrradianceField->debugDraw();
+		if (!m_firstFrame) {
+			screenProbeAdaptivePlacement(rd);
+			screenProbeDebugDraw();
+		}
+
 	}
 
 	GApp::onGraphics3D(rd, surface3D);
+
+	if (m_firstFrame) {
+		m_firstFrame = false;
+
+		//show(m_gbuffer_ws_position);
+	}
+}
+
+void App::screenProbeDebugDraw() {
+
+	int probeCountX = screenProbeWSUniformPositionTexture->width();
+	int probeCountY = screenProbeWSUniformPositionTexture->height();
+	shared_ptr<Image> screenProbeWSPositionImg = screenProbeWSUniformPositionTexture->toImage();
+
+	const float radius = 0.01f;
+
+	for (int i = 0; i < probeCountX; ++i)
+	{
+		for (int j = 0; j < probeCountY; ++j) {
+			Color4 wsPosition;
+			Color3 color = Color3(1.0f, 1.0f, 1.0f);
+			Point2int32 index = Point2int32(i, j);
+			screenProbeWSPositionImg->get(index, wsPosition);
+			::debugDraw(std::make_shared<SphereShape>((Vector3)wsPosition.rgb(), radius), 0.0f, color * 0.8f, Color4::clear());
+		}
+	}
 }
 
 void App::onAfterLoadScene(const Any & any, const String & sceneName)
@@ -89,3 +120,107 @@ void App::makeGUI()
 	debugWindow->pack();
 	debugWindow->setRect(Rect2D::xywh(0, 0, (float)window()->width(), debugWindow->rect().height()));
 }
+
+void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
+
+	if (m_staticProbe) {
+		int placementDownsampleFactor = 16;
+		int screenProbeDownsampleFactor = placementDownsampleFactor;
+		screenProbeUniformPlacement(rd, placementDownsampleFactor);
+
+		int minDownsampleFactor = 4;
+		float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
+
+		// TODO： View Change Clean
+
+		// RW Buffer
+		// World position
+		screenProbeWSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeWsPosition", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
+		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeWSPosBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
+		// Screen position
+		screenProbeSSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeSsPosition", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
+		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeSSPosBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGB32F());
+		// Header
+		screenTileAdaptiveProbeHeaderTexture = Texture::createEmpty("ScreenTileAdaptiveProbeHeader", rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor, ImageFormat::R32UI());
+		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeHeaderBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / placementDownsampleFactor, rd->viewport().height() / placementDownsampleFactor, ImageFormat::R32UI());
+		// Index
+		screenTileAdaptiveProbeIndicesTexture = Texture::createEmpty("ScreenTileAdaptiveProbeIndices", rd->viewport().width(), rd->viewport().height(), ImageFormat::R16UI());
+		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeIndicesBuffer = GLPixelTransferBuffer::create(rd->viewport().width(), rd->viewport().height(), ImageFormat::R16UI());
+		// Num
+		numAdaptiveScreenProbesTexture = Texture::createEmpty("NumAdaptiveScreenProbes", 1, 1, ImageFormat::RGB32F());
+		shared_ptr<GLPixelTransferBuffer>& numAdaptiveScreenProbesBuffer = GLPixelTransferBuffer::create(1, 1, ImageFormat::RGB32F());
+		
+		//do {
+			placementDownsampleFactor /= 2;
+			Args args;
+
+			// GroupSize & GroupNum
+			const Vector3int32 blockSize(16, 16, 1);
+			args.setComputeGridDim(Vector3int32(iCeil(rd->viewport().width() / (float(blockSize.x) * placementDownsampleFactor)),
+				iCeil(rd->viewport().height() / (float(blockSize.y) * placementDownsampleFactor)), 1));
+			args.setComputeGroupSize(blockSize);
+
+			
+
+			adaptiveProbeWSPosBuffer->bindAsShaderStorageBuffer(0);
+			adaptiveProbeSSPosBuffer->bindAsShaderStorageBuffer(1);
+			screenTileAdaptiveProbeHeaderBuffer->bindAsShaderStorageBuffer(2);
+			screenTileAdaptiveProbeIndicesBuffer->bindAsShaderStorageBuffer(3);
+			numAdaptiveScreenProbesBuffer->bindAsShaderStorageBuffer(4);
+
+			args.setUniform("placementDownsampleFactor", placementDownsampleFactor);
+			args.setUniform("screenProbeDownsampleFactor", screenProbeDownsampleFactor);
+			args.setUniform("viewport_width", rd->viewport().width());
+			args.setUniform("viewport_height", rd->viewport().height());
+			args.setUniform("ws_positionTexture", m_gbuffer->texture(GBuffer::Field::WS_POSITION), Sampler::buffer());
+			args.setUniform("depthTexture", m_gbuffer->texture(GBuffer::Field::DEPTH_AND_STENCIL), Sampler::buffer());
+			args.setUniform("ws_normalTexture", m_gbuffer->texture(GBuffer::Field::WS_NORMAL), Sampler::buffer());
+
+			LAUNCH_SHADER("shaders/ScreenProbeAdaptivePlacement.glc", args);
+
+			screenProbeWSAdaptivePositionTexture->update(adaptiveProbeWSPosBuffer);
+			screenProbeSSAdaptivePositionTexture->update(adaptiveProbeSSPosBuffer);
+			screenTileAdaptiveProbeHeaderTexture->update(screenTileAdaptiveProbeHeaderBuffer);
+			screenTileAdaptiveProbeIndicesTexture->update(screenTileAdaptiveProbeIndicesBuffer);
+			numAdaptiveScreenProbesTexture->update(numAdaptiveScreenProbesBuffer);
+			
+		//} while (placementDownsampleFactor > minDownsampleFactor);
+			
+
+		m_staticProbe = false;
+	}
+
+	
+
+}
+
+void App::screenProbeUniformPlacement(RenderDevice* rd, int downsampleFactor) {
+
+	//m_gbuffer_ws_position = m_gbuffer->texture(GBuffer::Field::WS_POSITION);
+	Args args;
+
+	// GroupSize & GroupNum
+	const Vector3int32 blockSize(16, 16, 1);
+	args.setComputeGridDim(Vector3int32(iCeil(rd->viewport().width() / (float(blockSize.x) * downsampleFactor)),
+		iCeil(rd->viewport().height() / (float(blockSize.y) * downsampleFactor)), 1));
+	args.setComputeGroupSize(blockSize);
+
+	// IO Variable
+	screenProbeWSUniformPositionTexture = Texture::createEmpty("UniformProbeWsPosition", rd->viewport().width() / downsampleFactor, rd->viewport().height() / downsampleFactor, ImageFormat::RGBA32F());
+	const shared_ptr<GLPixelTransferBuffer>& outputBuffer = GLPixelTransferBuffer::create(rd->viewport().width() / downsampleFactor, rd->viewport().height() / downsampleFactor, ImageFormat::RGBA32F());
+
+	outputBuffer->bindAsShaderStorageBuffer(0);
+	args.setUniform("placementDownsampleFactor", downsampleFactor);
+	args.setUniform("viewport_width", rd->viewport().width());
+	args.setUniform("viewport_height", rd->viewport().height());
+	args.setUniform("ws_positionTexture", m_gbuffer->texture(GBuffer::Field::WS_POSITION), Sampler::buffer());
+	args.setUniform("depthTexture", m_gbuffer->texture(GBuffer::Field::DEPTH_AND_STENCIL), Sampler::buffer());
+	args.setUniform("ws_normalTexture", m_gbuffer->texture(GBuffer::Field::WS_NORMAL), Sampler::buffer());
+
+	// Run the uniform shader
+	LAUNCH_SHADER("shaders/ScreenProbeUniformPlacement.glc", args);
+
+	screenProbeWSUniformPositionTexture->update(outputBuffer);
+}
+
+

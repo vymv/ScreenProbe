@@ -161,6 +161,8 @@ protected:
 	/** Update a single irradiance probe at runtime using newly sampled rays. */
 	void updateIrradianceProbe(RenderDevice* rd, bool irradiance);
 
+	//void screenProbeAdaptivePlacement();
+
 	void renderIndirectIllumination
 	(RenderDevice*							   rd,
 	 const shared_ptr<GBuffer>&                gbuffer,
