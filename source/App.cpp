@@ -57,7 +57,11 @@ void App::onInit()
 
 	//String SceneName = "Dragon (Dynamic Light Source)";
 	String SceneName = "G3D Breakfast Room";
+	//String SceneName = "G3D Living Room (Area Lights)";
+	//String SceneName = "BathRoom";
+	//String SceneName = "Living Room (Screen Probe)";
 	loadScene(SceneName);
+	m_activeCamera = m_debugCamera;
 
 	m_renderer = m_pGIRenderer;
 	
@@ -69,18 +73,29 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 	if (m_pIrradianceField)
 	{
 		m_pIrradianceField->onGraphics3D(rd, surface3D);
+
 		if (!m_firstFrame) {
-			screenProbeAdaptivePlacement(rd);
+
+			//if (activeCamera()->frame() != last_view) {
+			if (activeCamera()->lastChangeTime() != last_view) {
+
+				//last_view = activeCamera()->frame();
+				last_view = activeCamera()->lastChangeTime();
+				cleanScreenProbe();
+				screenProbeAdaptivePlacement(rd);
+				//show(screenTileAdaptiveProbeHeaderTexture);
+			}
 			screenProbeDebugDraw();
 		}
 
+		
 	}
 
 	GApp::onGraphics3D(rd, surface3D);
 
 	if (m_firstFrame) {
 		m_firstFrame = false;
-
+		
 		//show(m_gbuffer_ws_position);
 	}
 }
@@ -92,17 +107,40 @@ void App::screenProbeDebugDraw() {
 	shared_ptr<Image> screenProbeWSPositionImg = screenProbeWSUniformPositionTexture->toImage();
 
 	const float radius = 0.01f;
+	Color3 uniform_color = Color3(1.0f, 1.0f, 1.0f);
+	Color3 adaptive_color = Color3(1.0f, 0.0f, 0.0f);
 
 	for (int i = 0; i < probeCountX; ++i)
 	{
 		for (int j = 0; j < probeCountY; ++j) {
 			Color4 wsPosition;
-			Color3 color = Color3(1.0f, 1.0f, 1.0f);
+			
 			Point2int32 index = Point2int32(i, j);
 			screenProbeWSPositionImg->get(index, wsPosition);
-			::debugDraw(std::make_shared<SphereShape>((Vector3)wsPosition.rgb(), radius), 0.0f, color * 0.8f, Color4::clear());
+			::debugDraw(std::make_shared<SphereShape>((Vector3)wsPosition.rgb(), radius), 0.0f, uniform_color * 0.8f, Color4::clear());
 		}
 	}
+
+	shared_ptr<GLPixelTransferBuffer> numAdaptiveScreenProbesImg = numAdaptiveScreenProbesTexture->toPixelTransferBuffer();
+	int *adaptiveProbeCount = (int*)numAdaptiveScreenProbesImg->mapRead();
+	numAdaptiveScreenProbesImg->unmap();
+
+	shared_ptr<GLPixelTransferBuffer> screenProbeWSAdaptivePositionImg = screenProbeWSAdaptivePositionTexture->toPixelTransferBuffer();
+	float* adaptiveProbeList = (float*)screenProbeWSAdaptivePositionImg->mapRead();
+	//Vector4unorm8 * adaptiveProbeList = (Vector4unorm8*)screenProbeWSAdaptivePositionImg->mapRead();
+	screenProbeWSAdaptivePositionImg->unmap();
+
+	for (int i = 0;i < *adaptiveProbeCount * 4; i += 4) {
+
+		float x = adaptiveProbeList[i];
+		float y = adaptiveProbeList[i + 1];
+		float z = adaptiveProbeList[i + 2];
+		Vector3 wsPosition = Vector3(x, y, z);
+		::debugDraw(std::make_shared<SphereShape>(wsPosition, radius * 3), 0.0f, adaptive_color * 0.8f, Color4::clear());
+		
+	}
+	//::debugDraw(std::make_shared<SphereShape>(Vector3(2.88,0.42,2.94), radius * 5), 0.0f, Color3(1.0f,1.0f,0.0f) * 0.8f, Color4::clear());
+	//::debugDraw(std::make_shared<SphereShape>(Vector3(2.88, 0.6, 2.68), radius * 5), 0.0f, Color3(1.0f, 1.0f, 0.0f) * 0.8f, Color4::clear());
 }
 
 void App::onAfterLoadScene(const Any & any, const String & sceneName)
@@ -123,7 +161,7 @@ void App::makeGUI()
 
 void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
 
-	if (m_staticProbe) {
+	//if (m_staticProbe) {
 		int placementDownsampleFactor = 16;
 		int screenProbeDownsampleFactor = placementDownsampleFactor;
 		screenProbeUniformPlacement(rd, placementDownsampleFactor);
@@ -150,7 +188,7 @@ void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
 		numAdaptiveScreenProbesTexture = Texture::createEmpty("NumAdaptiveScreenProbes", 1, 1, ImageFormat::R32UI());
 		shared_ptr<GLPixelTransferBuffer>& numAdaptiveScreenProbesBuffer = GLPixelTransferBuffer::create(1, 1, ImageFormat::R32UI());
 		
-		//do {
+		do {
 			placementDownsampleFactor /= 2;
 			Args args;
 
@@ -159,8 +197,6 @@ void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
 			args.setComputeGridDim(Vector3int32(iCeil(rd->viewport().width() / (float(blockSize.x) * placementDownsampleFactor)),
 				iCeil(rd->viewport().height() / (float(blockSize.y) * placementDownsampleFactor)), 1));
 			args.setComputeGroupSize(blockSize);
-
-			
 
 			adaptiveProbeWSPosBuffer->bindAsShaderStorageBuffer(0);
 			adaptiveProbeSSPosBuffer->bindAsShaderStorageBuffer(1);
@@ -184,11 +220,11 @@ void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
 			screenTileAdaptiveProbeIndicesTexture->update(screenTileAdaptiveProbeIndicesBuffer);
 			numAdaptiveScreenProbesTexture->update(numAdaptiveScreenProbesBuffer);
 			
-		//} while (placementDownsampleFactor > minDownsampleFactor);
+		} while (placementDownsampleFactor > minDownsampleFactor);
 			
 
 		m_staticProbe = false;
-	}
+	//}
 
 	
 
@@ -224,3 +260,25 @@ void App::screenProbeUniformPlacement(RenderDevice* rd, int downsampleFactor) {
 }
 
 
+void App::cleanScreenProbe() {
+
+	if (screenProbeWSUniformPositionTexture) {
+		screenProbeWSUniformPositionTexture->clear();
+	}
+	if (screenProbeWSAdaptivePositionTexture) {
+		screenProbeWSAdaptivePositionTexture->clear();
+	}
+	if (screenProbeSSAdaptivePositionTexture) {
+		screenProbeSSAdaptivePositionTexture->clear();
+	}
+	if (screenTileAdaptiveProbeHeaderTexture) {
+		screenTileAdaptiveProbeHeaderTexture->clear();
+	}
+	if (screenTileAdaptiveProbeIndicesTexture) {
+		screenTileAdaptiveProbeIndicesTexture->clear();
+	}
+	if (numAdaptiveScreenProbesTexture) {
+		numAdaptiveScreenProbesTexture->clear();
+	}
+	
+}
