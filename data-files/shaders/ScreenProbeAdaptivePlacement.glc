@@ -38,7 +38,7 @@ uniform sampler2D   ws_normalTexture;
 
 struct FScreenProbeSample
 {
-	ivec2 SSCoord[4];
+	ivec2 AltasCoord[4];
 	vec4 weights;
 };
 
@@ -110,10 +110,10 @@ void CalculateUpsampleInterpolationWeights(ivec2 screenCoord, vec3 wsPosition, f
     ivec2 screenTileCoord00;
     CalculateUniformUpsampleInterpolationWeights(screenCoord, wsPosition, sceneDepth, worldNormal, screenTileCoord00, screenProbeSample.weights);
     int tileSize = screenProbeDownsampleFactor; 
-    screenProbeSample.SSCoord[0] = screenTileCoord00 * tileSize;
-	screenProbeSample.SSCoord[1] = (screenTileCoord00 + ivec2(1, 0)) * tileSize;
-	screenProbeSample.SSCoord[2] = (screenTileCoord00 + ivec2(0, 1)) * tileSize;
-	screenProbeSample.SSCoord[3] = (screenTileCoord00 + ivec2(1, 1)) * tileSize;
+    screenProbeSample.AltasCoord[0] = screenTileCoord00;
+	screenProbeSample.AltasCoord[1] = screenTileCoord00 + ivec2(1, 0);
+	screenProbeSample.AltasCoord[2] = screenTileCoord00 + ivec2(0, 1);
+	screenProbeSample.AltasCoord[3] = screenTileCoord00 + ivec2(1, 1);
 
     float epsilon = .01f;
     vec4 scenePlane = vec4(worldNormal, dot(wsPosition, worldNormal)); 
@@ -139,13 +139,19 @@ void CalculateUpsampleInterpolationWeights(ivec2 screenCoord, vec3 wsPosition, f
 
                 ivec2 screenProbeScreenPosition =  (ivec2) adaptiveProbeSSPosData[adaptiveProbeIndex].rg;
 
-                float probeDepth = texelFetch(depthTexture, screenProbeScreenPosition + ivec2(0.5, 0.5), 0).r;
+                int uniformProbeCountX  = ((int) viewport_width) / tileSize;
+                int uniformProbeCountY  = ((int) viewport_height) / tileSize;
+                int uniformProbeCount = uniformProbeCountX * uniformProbeCountY;
+                ivec2 screenProbeAltasCoord = ivec2((int)((adaptiveProbeCoord + uniformProbeCount)/ uniformProbeCountX), 
+                                                    (adaptiveProbeCoord + uniformProbeCount)% uniformProbeCountX);
+
+                float probeDepth = texelFetch(depthTexture, screenProbeScreenPosition, 0).r;
                 
                 float newDepthWeight = 0;
                 bool bPlaneWeighting = true;
                 if (bPlaneWeighting)
                 {
-                    vec3 probePosition = texelFetch(ws_positionTexture, screenProbeScreenPosition + ivec2(0.5, 0.5), 0).rgb;
+                    vec3 probePosition = texelFetch(ws_positionTexture, screenProbeScreenPosition, 0).rgb;
                     float planeDistance = abs(dot(vec4(probePosition, -1), scenePlane)); // 投影到平面法向量上的长度 scenePlane.w = wsposition . wsnormal
                     float relativeDepthDifference = planeDistance / sceneDepth;
                     newDepthWeight = exp2(-10000.0f * (relativeDepthDifference * relativeDepthDifference));
@@ -164,7 +170,7 @@ void CalculateUpsampleInterpolationWeights(ivec2 screenCoord, vec3 wsPosition, f
                 if (newInterpolationWeight > screenProbeSample.weights[cornerIndex])
                 {
                     screenProbeSample.weights[cornerIndex] = newInterpolationWeight;
-                    screenProbeSample.SSCoord[cornerIndex] = screenProbeScreenPosition;
+                    screenProbeSample.AltasCoord[cornerIndex] = screenProbeAltasCoord;
                 }
             }
         }
@@ -183,9 +189,9 @@ void main () {
     if((screenCoord.x < viewport_width && screenCoord.y < viewport_height) && 
         ((gl_GlobalInvocationID.x & 0x1) != 0 || (gl_GlobalInvocationID.y & 0x1) != 0))
     {
-        vec3 wsPosition = texelFetch(ws_positionTexture, screenCoord + ivec2(0.5, 0.5), 0).rgb;
-        float depth = texelFetch(depthTexture, screenCoord  + ivec2(0.5, 0.5), 0).r;
-        vec3 wsNormal = texelFetch(ws_normalTexture, screenCoord  + ivec2(0.5, 0.5), 0).rgb;
+        vec3 wsPosition = texelFetch(ws_positionTexture, screenCoord, 0).rgb;
+        float depth = texelFetch(depthTexture, screenCoord, 0).r;
+        vec3 wsNormal = texelFetch(ws_normalTexture, screenCoord, 0).rgb;
 
 
         // 计算weights

@@ -19,6 +19,17 @@ void CGIRenderer::renderDeferredShading(RenderDevice * rd, const Array<shared_pt
 			m_pIrradianceField->setShaderArgs(args, "irradianceFieldSurface.");
 			args.setUniform("energyPreservation", 1.0f);
 
+			args.setUniform("screenProbeDownsampleFactor", m_pIrradianceField->screenProbeDownsampleFactor);
+			args.setUniform("viewport_height", rd->viewport().height());
+			args.setUniform("viewport_width", rd->viewport().width());
+			args.setUniform("adaptiveProbeNum", m_pIrradianceField->adaptiveProbeCount);
+			args.setUniform("ws_positionTexture", m_pIrradianceField->m_gbuffer->texture(GBuffer::Field::WS_POSITION), Sampler::buffer());
+			args.setUniform("depthTexture", m_pIrradianceField->m_gbuffer->texture(GBuffer::Field::DEPTH_AND_STENCIL), Sampler::buffer());
+			args.setUniform("ws_normalTexture", m_pIrradianceField->m_gbuffer->texture(GBuffer::Field::WS_NORMAL), Sampler::buffer());
+			args.setUniform("adaptiveProbeSSPosData", m_pIrradianceField->screenProbeSSAdaptivePositionTexture, Sampler::buffer());
+			args.setUniform("screenTileHeaderData", m_pIrradianceField->screenTileAdaptiveProbeHeaderTexture, Sampler::buffer());
+			args.setUniform("screenTileProbeIndex", m_pIrradianceField->screenTileAdaptiveProbeIndicesTexture, Sampler::buffer());
+
 			LAUNCH_SHADER("shaders/GIRenderer_ComputeIndirect.pix", args);
 		} rd->pop2D();
 	}

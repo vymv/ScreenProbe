@@ -36,10 +36,12 @@ out float4 result;
 int probeID(vec2 texelXY) {
     int probeWithBorderSide = probeSideLength + 2;
     int probesPerSide = (fullTextureWidth - 2) / probeWithBorderSide;
+
+    // 除probeWithBorderSide得到二维坐标，下面转化为一维坐标
     return int(texelXY.x / probeWithBorderSide) + probesPerSide * int(texelXY.y / probeWithBorderSide);
 }
 
-// Compute normalized oct coord, mapping top left of top left pixel to (-1,-1)
+// Compute normalized oct coord, mapping top left of top left pixel to (-1,-1) 该纹素在对应的Probe的一小块Texture中，处于什么位置，用以计算对应的direction
 vec2 normalizedOctCoord(ivec2 fragCoord) {
     int probeWithBorderSide = probeSideLength + 2;
 
@@ -50,6 +52,7 @@ vec2 normalizedOctCoord(ivec2 fragCoord) {
 
 void main() {
 
+    // 更新的纹理是IradianceProbe
     int relativeProbeID = probeID(gl_FragCoord.xy);
 
     if (relativeProbeID == -1) {

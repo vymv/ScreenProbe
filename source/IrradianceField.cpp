@@ -172,7 +172,7 @@ void IrradianceField::loadNewScene
 	init(spec);
 	allocateIntermediateBuffers();
 	m_probeFormatChanged = true;
-	generateIrradianceProbes(RenderDevice::current);
+	//generateIrradianceProbes(RenderDevice::current);
 
 	debugPrintf("Load complete.\n");
 }
@@ -263,7 +263,14 @@ Point3 IrradianceField::probeIndexToPosition(int index) const
 	return m_probeStep * Vector3(P) + m_probeStartPosition;
 }
 
-void IrradianceField::onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surface>>& surfaceArray)
+void IrradianceField::onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surface>>& surfaceArray, 
+	const shared_ptr<Texture> screenProbeWSAdaptivePositionTexture, 
+	const shared_ptr<Texture> screenProbeWSUniformPositionTexture, 
+	const shared_ptr<Texture> screenProbeSSAdaptivePositionTexture,
+	const shared_ptr<Texture> numAdaptiveScreenProbesTexture, 
+	const shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture, 
+	const shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture, 
+	shared_ptr<GBuffer> m_gbuffer)
 {
 	if (m_sceneDirty && System::time() - lastSceneUpdateTime() > 0.1)
 	{
@@ -271,7 +278,7 @@ void IrradianceField::onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surf
 		m_sceneDirty = false;
 	}
 
-	generateIrradianceProbes(rd);
+	generateIrradianceProbes(rd, screenProbeWSAdaptivePositionTexture, screenProbeWSUniformPositionTexture, screenProbeSSAdaptivePositionTexture, numAdaptiveScreenProbesTexture, screenTileAdaptiveProbeHeaderTexture, screenTileAdaptiveProbeIndicesTexture, m_gbuffer);
 	generateIrradianceRays(rd, m_scene);
 	sampleAndShadeIrradianceRays(rd, m_scene, surfaceArray);
 	updateIrradianceProbes(rd, m_scene);
@@ -351,6 +358,17 @@ void IrradianceField::renderIndirectIllumination
 		args.setUniform("energyPreservation", recursiveEnergyPreservation);
 		args.setMacro("RT_GBUFFER", 1);
 
+		args.setUniform("screenProbeDownsampleFactor", screenProbeDownsampleFactor);
+		args.setUniform("viewport_height", rd->viewport().height());
+		args.setUniform("viewport_width", rd->viewport().width());		
+		args.setUniform("adaptiveProbeNum", adaptiveProbeCount);
+		args.setUniform("ws_positionTexture", m_gbuffer->texture(GBuffer::Field::WS_POSITION), Sampler::buffer());
+		args.setUniform("depthTexture", m_gbuffer->texture(GBuffer::Field::DEPTH_AND_STENCIL), Sampler::buffer());
+		args.setUniform("ws_normalTexture", m_gbuffer->texture(GBuffer::Field::WS_NORMAL), Sampler::buffer());
+		args.setUniform("adaptiveProbeSSPosData",screenProbeSSAdaptivePositionTexture,Sampler::buffer());
+		args.setUniform("screenTileHeaderData", screenTileAdaptiveProbeHeaderTexture, Sampler::buffer());
+		args.setUniform("screenTileProbeIndex", screenTileAdaptiveProbeIndicesTexture, Sampler::buffer());
+
 		LAUNCH_SHADER("shaders/GIRenderer_ComputeIndirect.pix", args);
 	} rd->pop2D();
 }
@@ -364,6 +382,11 @@ void IrradianceField::generateIrradianceRays(RenderDevice* rd, const shared_ptr<
 
 		args.setMacro("RAYS_PER_PROBE", m_specification.irradianceRaysPerProbe);
 		args.setRect(rd->viewport());
+		screenProbeWSAdaptivePositionTexture->setShaderArgs(args, "adaptiveWSPosition.", Sampler::buffer());
+		screenProbeWSUniformPositionTexture->setShaderArgs(args, "uniformWSPosition.", Sampler::buffer());
+		args.setUniform("uniformProbeCountX", screenProbeWSUniformPositionTexture->width());
+		args.setUniform("uniformProbeCountY", screenProbeWSUniformPositionTexture->height());
+		args.setUniform("adaptiveProbeCount", adaptiveProbeCount);
 		
 		setShaderArgs(args, "irradianceFieldSurface.");
 		args.setUniform("randomOrientation", Matrix3::fromAxisAngle(Vector3::random(), Random::common().uniform(0.f, 2 * pif())));
@@ -541,13 +564,36 @@ void IrradianceField::updateIrradianceProbe(RenderDevice* rd, bool irradiance)
 	//} rd->pop2D();
 }
 
-void IrradianceField::generateIrradianceProbes(RenderDevice* rd)
+void IrradianceField::generateIrradianceProbes(RenderDevice* rd,
+	const shared_ptr<Texture> screenProbeWSAdaptivePositionTexture,
+	const shared_ptr<Texture> screenProbeWSUniformPositionTexture,
+	const shared_ptr<Texture> screenProbeSSAdaptivePositionTexture,
+	const shared_ptr<Texture> numAdaptiveScreenProbesTexture,
+	const shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture,
+	const shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture,
+	shared_ptr<GBuffer> m_gbuffer)
 {
+
+	this->screenProbeWSAdaptivePositionTexture = screenProbeWSAdaptivePositionTexture;
+	this->screenProbeWSUniformPositionTexture = screenProbeWSUniformPositionTexture;
+	this->screenProbeSSAdaptivePositionTexture = screenProbeSSAdaptivePositionTexture;
+	//this->numAdaptiveScreenProbesTexture = numAdaptiveScreenProbesTexture;
+	this->screenTileAdaptiveProbeHeaderTexture = screenTileAdaptiveProbeHeaderTexture;
+	this->screenTileAdaptiveProbeIndicesTexture = screenTileAdaptiveProbeIndicesTexture;
+	this->m_gbuffer = m_gbuffer;
+
+	const int uniformProbeCount = screenProbeWSUniformPositionTexture->width() * screenProbeWSUniformPositionTexture->height();
+	shared_ptr<GLPixelTransferBuffer> numAdaptiveScreenProbesImg = numAdaptiveScreenProbesTexture->toPixelTransferBuffer();
+	int* adaptiveProbeCount = (int*)numAdaptiveScreenProbesImg->mapRead();
+	numAdaptiveScreenProbesImg->unmap();
+	this->adaptiveProbeCount = *adaptiveProbeCount;
+
+
 	const int irradianceSide = irradianceOctSideLength();
 	const int depthSide = depthOctSideLength();
 
+	const int rayDimY = uniformProbeCount + *adaptiveProbeCount;
 	const int rayDimX = m_specification.irradianceRaysPerProbe;
-	const int rayDimY = probeCount();
 
 	// Allocate or reallocate the ray tracing buffers if the probe requirements change
 	if (isNull(m_irradianceRayOrigins) ||
@@ -576,11 +622,11 @@ void IrradianceField::generateIrradianceProbes(RenderDevice* rd)
 		m_probeFormatChanged = false;
 
 		// 1-pixel of padding surrounding each probe, 1-pixel padding surrounding entire texture for alignment.
-		const int irradianceWidth = (irradianceSide + 2) * m_specification.probeCounts.x * m_specification.probeCounts.y + 2;
-		const int irradianceHeight = (irradianceSide + 2) * m_specification.probeCounts.z + 2;
+		const int irradianceWidth = (irradianceSide + 2) * screenProbeWSUniformPositionTexture->width() + 2;
+		const int irradianceHeight = (irradianceSide + 2) * (screenProbeWSUniformPositionTexture->height() * (1.0 + m_specification.maxAdaptiveFactor)) + 2;
 
-		const int depthWidth = (depthSide + 2) * m_specification.probeCounts.x * m_specification.probeCounts.y + 2;
-		const int depthHeight = (depthSide + 2) * m_specification.probeCounts.z + 2;
+		const int depthWidth = (irradianceSide + 2) * screenProbeWSUniformPositionTexture->width() + 2;
+		const int depthHeight = (irradianceSide + 2) * (screenProbeWSUniformPositionTexture->height() * (1.0 + m_specification.maxAdaptiveFactor)) + 2;
 
 		m_irradianceProbes = Texture::createEmpty("IrradianceField::m_irradianceProbes", irradianceWidth, irradianceHeight, s_irradianceFormats[m_irradianceFormatIndex], Texture::DIM_2D, false, 1);
 		m_meanDistProbes = Texture::createEmpty("IrradianceField::m_meanDistProbes", depthWidth, depthHeight, s_depthFormats[m_depthFormatIndex], Texture::DIM_2D, false, 1);

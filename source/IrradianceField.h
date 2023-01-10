@@ -16,7 +16,8 @@ protected:
 
 		/** Side length of one face */
 		int             irradianceOctResolution = 8;
-		int             depthOctResolution = 16;
+		int             depthOctResolution = 8;
+		float			maxAdaptiveFactor = 0.5;
 
 		/** Subtract a little distance = bias (pull sample point) to avoid
 			texel artifacts (self-shadowing grids).  */
@@ -62,6 +63,7 @@ protected:
 
 		int             irradianceFormatIndex = 4;
 		int             depthFormatIndex = 1;
+
 
 		bool            showLights = false;
 		bool            encloseBounds = false;
@@ -115,6 +117,7 @@ protected:
 
 	int                                 m_irradianceFormatIndex = 4;
 	int                                 m_depthFormatIndex = 1;
+
 	bool                                m_probeFormatChanged;
 
 	/** Scene tree used for accelerated ray-tracing */
@@ -127,7 +130,10 @@ protected:
 	shared_ptr<Framebuffer>             m_irradianceRaysFB;
 
 	shared_ptr<GBuffer>                 m_irradianceRaysGBuffer;
+	//shared_ptr<GBuffer>                 m_gbuffer;
 	shared_ptr<Framebuffer>             m_irradianceRaysShadedFB;
+
+
 
 	shared_ptr<Scene>                   m_scene;
 
@@ -170,6 +176,19 @@ protected:
 
 public:
 
+	// Added
+	shared_ptr<Texture> screenProbeWSAdaptivePositionTexture;
+	shared_ptr<Texture> screenProbeWSUniformPositionTexture;
+	// shared_ptr<Texture> numAdaptiveScreenProbesTexture;
+	shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture;
+	shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture;
+	shared_ptr<Texture> screenProbeSSAdaptivePositionTexture;
+	shared_ptr<GBuffer> m_gbuffer;
+	// Added
+	int									adaptiveProbeCount;
+	int									screenProbeDownsampleFactor = 16;
+
+
 	void sampleAndShadeArbitraryRays
 	(RenderDevice*								rd,
 	 const Array<shared_ptr<Surface>>&          surfaceArray,
@@ -196,7 +215,14 @@ public:
 	bool                        m_firstFrame = true;
 	bool                        m_oneBounce = false;
 
-	void generateIrradianceProbes(RenderDevice* rd);
+	void generateIrradianceProbes(RenderDevice* rd, 
+		const shared_ptr<Texture> screenProbeWSAdaptivePositionTexture, 
+		const shared_ptr<Texture> screenProbeWSUniformPositionTexture, 
+		const shared_ptr<Texture> screenProbeSSAdaptivePositionTexture,
+		const shared_ptr<Texture> numAdaptiveScreenProbesTexture, 
+		const shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture, 
+		const shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture, 
+		shared_ptr<GBuffer> m_gbuffer);
 
 	void setShaderArgs(UniformTable& args, const String& prefix);
 
@@ -223,15 +249,15 @@ public:
 		return m_specification.depthOctResolution;
 	}
 
-	void setIrradianceOctSideLength(int sideLengthSize, RenderDevice* rd) {
-		m_specification.irradianceOctResolution = sideLengthSize;
-		generateIrradianceProbes(rd);
-	}
+	//void setIrradianceOctSideLength(int sideLengthSize, RenderDevice* rd) {
+	//	m_specification.irradianceOctResolution = sideLengthSize;
+	//	generateIrradianceProbes(rd);
+	//}
 
-	void setDepthOctSideLength(int sideLengthSize, RenderDevice* rd) {
-		m_specification.depthOctResolution = sideLengthSize;
-		generateIrradianceProbes(rd);
-	}
+	//void setDepthOctSideLength(int sideLengthSize, RenderDevice* rd) {
+	//	m_specification.depthOctResolution = sideLengthSize;
+	//	generateIrradianceProbes(rd);
+	//}
 
 	const ImageFormat* irradianceFormat() {
 		return s_irradianceFormats[m_irradianceFormatIndex];
@@ -262,7 +288,14 @@ public:
      int                      irradianceCubeResolutionOverride = -1);
 
 	/** The surfaceArray is only used to find the skybox */
-	virtual void onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surface>>& surfaceArray);
+	virtual void onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surface>>& surfaceArray, 
+		const shared_ptr<Texture> screenProbeWSAdaptivePositionTexture, 
+		const shared_ptr<Texture> screenProbeWSUniformPositionTexture, 
+		const shared_ptr<Texture> screenProbeSSAdaptivePositionTexture,
+		const shared_ptr<Texture> numAdaptiveScreenProbesTexture, 
+		const shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture, 
+		const shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture, 
+		shared_ptr<GBuffer> m_gbuffer);
 
 	virtual void onSceneChanged(const shared_ptr<Scene>& scene);
 

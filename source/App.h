@@ -9,6 +9,8 @@ class App : public GApp
 	shared_ptr<IrradianceField> m_pIrradianceField;
 	bool m_firstFrame = true;
 	bool m_staticProbe = true;
+	float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
+
 	//shared_ptr<Texture> m_gbuffer_depth;
 	//shared_ptr<Texture> m_gbuffer_ws_normal;
 	//shared_ptr<Texture> m_gbuffer_ws_position;

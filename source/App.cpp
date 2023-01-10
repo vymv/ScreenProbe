@@ -55,13 +55,14 @@ void App::onInit()
 	m_pGIRenderer->setDeferredShading(true);
 	m_pGIRenderer->setOrderIndependentTransparency(true);
 
-	//String SceneName = "Dragon (Dynamic Light Source)";
-	String SceneName = "G3D Breakfast Room";
+	String SceneName = "Dragon (Dynamic Light Source)";
+	//String SceneName = "G3D Breakfast Room";
 	//String SceneName = "G3D Living Room (Area Lights)";
+	//String SceneName = "G3D Living Room";
 	//String SceneName = "BathRoom";
 	//String SceneName = "Living Room (Screen Probe)";
 	loadScene(SceneName);
-	m_activeCamera = m_debugCamera;
+	//m_activeCamera = m_debugCamera;
 
 	m_renderer = m_pGIRenderer;
 	
@@ -72,20 +73,27 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 {
 	if (m_pIrradianceField)
 	{
-		m_pIrradianceField->onGraphics3D(rd, surface3D);
-
+		
 		if (!m_firstFrame) {
 
-			//if (activeCamera()->frame() != last_view) {
+			// if (activeCamera()->frame() != last_view) {
 			if (activeCamera()->lastChangeTime() != last_view) {
 
-				//last_view = activeCamera()->frame();
+				// last_view = activeCamera()->frame();
 				last_view = activeCamera()->lastChangeTime();
 				cleanScreenProbe();
 				screenProbeAdaptivePlacement(rd);
-				//show(screenTileAdaptiveProbeHeaderTexture);
+				// show(screenTileAdaptiveProbeHeaderTexture);
 			}
-			screenProbeDebugDraw();
+			//screenProbeDebugDraw();
+			m_pIrradianceField->onGraphics3D(rd, surface3D, 
+				screenProbeWSAdaptivePositionTexture, 
+				screenProbeWSUniformPositionTexture, 
+				screenProbeSSAdaptivePositionTexture,
+				numAdaptiveScreenProbesTexture, 
+				screenTileAdaptiveProbeHeaderTexture, 
+				screenTileAdaptiveProbeIndicesTexture, 
+				m_gbuffer);
 		}
 
 		
@@ -167,7 +175,7 @@ void App::screenProbeAdaptivePlacement(RenderDevice* rd) {
 		screenProbeUniformPlacement(rd, placementDownsampleFactor);
 
 		int minDownsampleFactor = 4;
-		float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
+		// float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
 
 		// TODO： View Change Clean
 

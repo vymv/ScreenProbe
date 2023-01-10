@@ -25,7 +25,7 @@ void main () {
     ivec2 screenCoord = ivec2(gl_GlobalInvocationID.xy) * placementDownsampleFactor;
 
     vec3 wsPosition = texelFetch(ws_positionTexture, screenCoord, 0).rgb;
-    int outputIndex = int(gl_GlobalInvocationID.y * (viewport_width/placementDownsampleFactor) + gl_GlobalInvocationID.x);
+    int outputIndex = int(gl_GlobalInvocationID.y * ((int)viewport_width/placementDownsampleFactor) + gl_GlobalInvocationID.x);
     outputBufferData[outputIndex] = wsPosition;
     
 

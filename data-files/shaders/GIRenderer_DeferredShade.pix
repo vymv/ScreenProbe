@@ -36,4 +36,5 @@ void main()
 	Radiance3 L_matteIndirect = texelFetch(matteIndirectBuffer, C, 0).rgb;
 
 	result = surfel.emissive + L_scatteredDirect + L_matteIndirect * surfel.lambertianReflectivity * invPi;
+	//result = surfel.emissive + L_scatteredDirect;
 }

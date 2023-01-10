@@ -14,6 +14,11 @@ Uses helpers from the G3D innovation engine (http://g3d.sf.net)
 
 uniform mat3            randomOrientation;
 uniform IrradianceField irradianceFieldSurface;
+uniform Texture2D       adaptiveWSPosition;
+uniform Texture2D       uniformWSPosition;
+uniform int             uniformProbeCountX;
+uniform int             uniformProbeCountY;
+uniform int             adaptiveProbeCount;
 
 out float4              rayOrigin;
 out float4              rayDirection;
@@ -54,6 +59,27 @@ void main() {
     // This value should be on the order of the normal bias.
     const float rayMinDistance = 0.08;
 
-    rayOrigin = float4(probeLocation(probeID), rayMinDistance);
+    
+
+    if( probeID < uniformProbeCountX * uniformProbeCountY ){
+
+        int u = probeID % uniformProbeCountX;
+        int v = probeID / uniformProbeCountX;
+        ivec2 C = ivec2(u,v);
+        Vector3 uniformWSPos = sampleTextureFetch(uniformWSPosition,C,0).xyz;
+        rayOrigin = float4(uniformWSPos, rayMinDistance);
+
+    }else{
+
+        int adaptiveProbeID = probeID - uniformProbeCountX * uniformProbeCountY;
+        int u = adaptiveProbeID % uniformProbeCountX;
+        int v = adaptiveProbeID / uniformProbeCountX;
+        ivec2 C = ivec2(u,v);
+        Vector3 adaptiveWSPos = sampleTextureFetch(adaptiveWSPosition,C,0).xyz;
+        rayOrigin = float4(adaptiveWSPos, rayMinDistance);
+
+    }
+
+    //rayOrigin = float4(probeLocation(probeID), rayMinDistance);
     rayDirection = float4(randomOrientation * sphericalFibonacci(rayID, RAYS_PER_PROBE), inf);
 }
