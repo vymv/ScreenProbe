@@ -229,8 +229,8 @@ void main()
 	irradiance += GetScreenProbeIrradiance(screenProbeSample.AltasCoord[2], irradianceProbeUV) * screenProbeSample.weights.z;
 	irradiance += GetScreenProbeIrradiance(screenProbeSample.AltasCoord[3], irradianceProbeUV) * screenProbeSample.weights.w;
 
-    //E_lambertianIndirect = irradiance;
-    E_lambertianIndirect = screenProbeSample.weights.xyz;
+    E_lambertianIndirect = irradiance;
+    //E_lambertianIndirect = screenProbeSample.weights.xyz;
 
 #else
     ivec2 C = ivec2(gl_FragCoord.xy);
