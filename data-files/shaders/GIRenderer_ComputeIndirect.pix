@@ -138,8 +138,8 @@ void CalculateUpsampleInterpolationWeights(ivec2 screenCoord, vec3 wsPosition, f
                 int uniformProbeCountX  = ((int) viewport_width) / tileSize;
                 int uniformProbeCountY  = ((int) viewport_height) / tileSize;
                 int uniformProbeCount = uniformProbeCountX * uniformProbeCountY;
-                ivec2 screenProbeAltasCoord = ivec2((int)((adaptiveProbeCoord + uniformProbeCount)/ uniformProbeCountX), 
-                                                    (adaptiveProbeCoord + uniformProbeCount)% uniformProbeCountX);
+                ivec2 screenProbeAltasCoord = ivec2((int)((adaptiveProbeIndex + uniformProbeCount)% uniformProbeCountX), 
+                                                    (adaptiveProbeIndex + uniformProbeCount)/ uniformProbeCountX);
                 ivec2 screenProbeScreenPosition = (ivec2)texelFetch(adaptiveProbeSSPosData,screenProbeAltasCoord - ivec2(0,uniformProbeCountY),0).rg;
                 float probeDepth = texelFetch(depthTexture, screenProbeScreenPosition, 0).r;
                 
@@ -200,9 +200,11 @@ Irradiance3 GetScreenProbeIrradiance(ivec2 screenProbeAltasCoord, float2 Irradia
 	//float2 IrradianceProbeUVCoord = IrradianceProbeUV * IRRADIANCE_PROBE_RES + 1.0f;
     float probeSideWithBorder = 10.0f;
     float probeSide = 8.0f;
-    float2 screenProbeAtlasBufferSize = float2(viewport_width/screenProbeDownsampleFactor,viewport_height/screenProbeDownsampleFactor);
+    float2 screenProbeAtlasBufferSize = float2(viewport_width/screenProbeDownsampleFactor,
+                                                viewport_height/screenProbeDownsampleFactor);
     float2 IrradianceProbeUVCoord = IrradianceProbeUV * probeSide + 1.0f;
-	float2 AtlasUV = (screenProbeAltasCoord * probeSideWithBorder + IrradianceProbeUVCoord) / (screenProbeAtlasBufferSize * probeSideWithBorder);
+	float2 AtlasUV = (screenProbeAltasCoord * probeSideWithBorder + IrradianceProbeUVCoord) / 
+                     (screenProbeAtlasBufferSize * probeSideWithBorder);
 	//return ScreenProbeIrradianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, AtlasUV, 0).xyz;
     return texture(irradianceFieldSurface.irradianceProbeGridbuffer, AtlasUV).rgb;
 }
@@ -222,7 +224,7 @@ void main()
     screenProbeSample.weights /= max(dot(screenProbeSample.weights, vec4(1,1,1,1)), epsilon);
 
     vec2 normalizedOctCoord = octEncode(normalize(wsNormal));
-    vec2 irradianceProbeUV = (normalizedOctCoord + vec2(1.0f)) * 0.5f;
+    vec2 irradianceProbeUV = (normalizedOctCoord + vec2(1.0f)) * 0.5f; // 0-1
 
     Irradiance3 irradiance = GetScreenProbeIrradiance(screenProbeSample.AltasCoord[0], irradianceProbeUV) * screenProbeSample.weights.x;
     irradiance += GetScreenProbeIrradiance(screenProbeSample.AltasCoord[1], irradianceProbeUV) * screenProbeSample.weights.y;

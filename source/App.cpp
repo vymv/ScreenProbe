@@ -55,9 +55,9 @@ void App::onInit()
 	m_pGIRenderer->setDeferredShading(true);
 	m_pGIRenderer->setOrderIndependentTransparency(true);
 
-	String SceneName = "Dragon (Dynamic Light Source)";
+	//String SceneName = "Dragon (Dynamic Light Source)";
 	//String SceneName = "G3D Breakfast Room";
-	//String SceneName = "G3D Living Room (Area Lights)";
+	String SceneName = "G3D Living Room (Area Lights)";
 	//String SceneName = "G3D Living Room";
 	//String SceneName = "BathRoom";
 	//String SceneName = "Living Room (Screen Probe)";
