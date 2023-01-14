@@ -2,11 +2,13 @@
 #include <G3D/G3D.h>
 #include "IrradianceField.h"
 #include "GIRenderer.h"
+#include "RadianceCache.h"
 
 class App : public GApp
 {
 	shared_ptr<CGIRenderer>     m_pGIRenderer;
 	shared_ptr<IrradianceField> m_pIrradianceField;
+	shared_ptr<RadianceCache> m_pRadianceCache;
 	bool m_firstFrame = true;
 	bool m_staticProbe = true;
 	float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍

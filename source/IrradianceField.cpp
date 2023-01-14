@@ -331,8 +331,10 @@ void IrradianceField::allocateIntermediateBuffers()
 	gbufferRTSpec.encoding[GBuffer::Field::CS_POSITION] = nullptr;
 
 	int rayDimX = probeCount();
+	//int rayDimX = screenProbeWSUniformPositionTexture->width() * screenProbeWSUniformPositionTexture->height() + adaptiveProbeCount;
 	int rayDimY = m_specification.irradianceRaysPerProbe;
 
+	
 	m_irradianceRaysGBuffer = GBuffer::create(gbufferRTSpec, "IrradianceField::m_irradianceRaysGBuffer");
 	m_irradianceRaysGBuffer->setSpecification(gbufferRTSpec);
 	m_irradianceRaysGBuffer->resize(rayDimX, rayDimY);

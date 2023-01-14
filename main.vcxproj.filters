@@ -10,6 +10,9 @@
     <ClCompile Include="source\GIRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\RadianceCache.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\App.h">
@@ -19,6 +22,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\GIRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\RadianceCache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -60,6 +66,18 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="data-files\shaders\ScreenProbeAdaptivePlacement.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbe_ClearProbeIndirect.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbe_Common.pix">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbe_Gather.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbePlacement.glc">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

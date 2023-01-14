@@ -94,6 +94,14 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 				screenTileAdaptiveProbeHeaderTexture, 
 				screenTileAdaptiveProbeIndicesTexture, 
 				m_gbuffer);
+
+			m_pRadianceCache->setupInputs(activeCamera(),
+				screenProbeWSAdaptivePositionTexture,
+				screenProbeSSAdaptivePositionTexture,
+				numAdaptiveScreenProbesTexture,
+				m_gbuffer);
+			m_pRadianceCache->onGraphics3D(rd, surface3D);
+			m_pRadianceCache->debugDraw();
 		}
 
 		
@@ -156,6 +164,7 @@ void App::onAfterLoadScene(const Any & any, const String & sceneName)
 	m_pIrradianceField = IrradianceField::create(sceneName, scene());
 	m_pIrradianceField->onSceneChanged(scene());
 	m_pGIRenderer->setIrradianceField(m_pIrradianceField);
+	m_pRadianceCache = std::make_shared<RadianceCache>();
 }
 
 void App::makeGUI()
