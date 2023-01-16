@@ -170,7 +170,7 @@ void IrradianceField::loadNewScene
 	m_maxDistance = (boundingBoxLengths / spec.probeCounts).length() * 1.5f;
 
 	init(spec);
-	allocateIntermediateBuffers();
+	//allocateIntermediateBuffers();
 	m_probeFormatChanged = true;
 	//generateIrradianceProbes(RenderDevice::current);
 
@@ -330,8 +330,8 @@ void IrradianceField::allocateIntermediateBuffers()
 	gbufferRTSpec.encoding[GBuffer::Field::CS_NORMAL] = nullptr;
 	gbufferRTSpec.encoding[GBuffer::Field::CS_POSITION] = nullptr;
 
-	int rayDimX = probeCount();
-	//int rayDimX = screenProbeWSUniformPositionTexture->width() * screenProbeWSUniformPositionTexture->height() + adaptiveProbeCount;
+	//int rayDimX = probeCount();
+	int rayDimX = screenProbeWSUniformPositionTexture->width() * screenProbeWSUniformPositionTexture->height() + adaptiveProbeCount;
 	int rayDimY = m_specification.irradianceRaysPerProbe;
 
 	
@@ -596,6 +596,10 @@ void IrradianceField::generateIrradianceProbes(RenderDevice* rd,
 
 	const int rayDimY = uniformProbeCount + *adaptiveProbeCount;
 	const int rayDimX = m_specification.irradianceRaysPerProbe;
+
+	if (isNull(m_irradianceRaysGBuffer)) {
+		allocateIntermediateBuffers();
+	}
 
 	// Allocate or reallocate the ray tracing buffers if the probe requirements change
 	if (isNull(m_irradianceRayOrigins) ||

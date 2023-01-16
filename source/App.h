@@ -22,7 +22,7 @@ class App : public GApp
 	shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture;
 	shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture;
 	shared_ptr<Texture> numAdaptiveScreenProbesTexture;
-	//CoordinateFrame last_view;
+
 	RealTime last_view;
 protected:
 	void makeGUI();
@@ -33,8 +33,8 @@ public:
 	virtual void onInit() override;
 	virtual void onGraphics3D(RenderDevice* rd, Array<shared_ptr<Surface>>& surface3D) override;
 	virtual void onAfterLoadScene(const Any& any, const String& sceneName) override;
-	void screenProbeAdaptivePlacement(RenderDevice* rd);
+	void screenProbeAdaptivePlacement();
 	void screenProbeDebugDraw();
 	void cleanScreenProbe();
-	void screenProbeUniformPlacement(RenderDevice* rd, int downsampleFactor);
+	void screenProbeUniformPlacement(int downsampleFactor);
 };
