@@ -30,7 +30,6 @@ layout(std430, binding=3) buffer worldPositionToRadianceProbeCoordForMark {vec4 
 layout(std430, binding=4) buffer radianceProbeCoordToWorldPosition {vec4 RadianceProbeCoordToWorldPosition[];};
 
 layout(r32ui) uniform uimage3D RadianceProbeIndirectionTexture;
-layout(rgba32ui) uniform uimage2D testRadianceProbeIndirectionTexture;
 
 uniform ivec2 ScreenProbeAtlasViewSize;
 uniform ivec2 ScreenProbeViewSize;
@@ -131,16 +130,7 @@ void MarkProbeIndirectionTextureCoord(ivec3 ProbeCoord, uint ClipmapIndex)
 		
 		ivec3 IndirectionTextureCoord = ProbeCoord + ivec3(ClipmapIndex * RadianceProbeClipmapResolutionForMark, 0, 0);
 		imageStore(RadianceProbeIndirectionTexture, IndirectionTextureCoord, uvec4(USED_PROBE_INDEX));
-		ivec2 testCoord = ivec2(IndirectionTextureCoord.x, IndirectionTextureCoord.z * IndirectionTextureCoord.y + IndirectionTextureCoord.y);
-		//ivec2 testCoord = ivec2(0,0);
-		//ivec2 testCoord = ivec2(0,0);
-		imageStore(testRadianceProbeIndirectionTexture, testCoord+ ivec2(0,0), uvec4(IndirectionTextureCoord.x));
-		imageStore(testRadianceProbeIndirectionTexture, testCoord+ ivec2(1,0), uvec4(IndirectionTextureCoord.y));
-		imageStore(testRadianceProbeIndirectionTexture, testCoord + ivec2(3,0), uvec4(IndirectionTextureCoord.z));
 
-		imageStore(testRadianceProbeIndirectionTexture, testCoord+ ivec2(2,0), uvec4(ClipmapIndex));
-		//imageStore(testRadianceProbeIndirectionTexture, testCoord + ivec2(3,0), uvec4(WorldPositionToRadianceProbeCoordForMark[3]));
-		//imageStore(testRadianceProbeIndirectionTexture, testCoord, uvec4(RadianceProbeClipmapResolutionForMark));
 	}
 }
 

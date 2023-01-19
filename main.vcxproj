@@ -125,7 +125,13 @@
     <None Include="data-files\shaders\SampleIrradianceField.pix" />
     <None Include="data-files\shaders\ScreenProbeAdaptivePlacement.glc" />
     <None Include="data-files\shaders\ScreenProbeUniformPlacement.glc" />
+    <None Include="data-files\shaders\WorldSpaceProbeAllocateTraces.glc" />
+    <None Include="data-files\shaders\WorldSpaceProbeAllocateUsedProbe.glc" />
+    <None Include="data-files\shaders\WorldSpaceProbeClearFreeList.glc" />
+    <None Include="data-files\shaders\WorldSpaceProbeClearUpdateResources.glc" />
     <None Include="data-files\shaders\WorldSpaceProbePlacement.glc" />
+    <None Include="data-files\shaders\WorldSpaceProbeSelectMaxHistogram.glc" />
+    <None Include="data-files\shaders\WorldSpaceProbeUpdateIndirection.glc" />
     <None Include="data-files\shaders\WorldSpaceProbe_ClearProbeIndirect.glc" />
     <None Include="data-files\shaders\WorldSpaceProbe_Common.pix" />
     <None Include="data-files\shaders\WorldSpaceProbe_Gather.glc" />

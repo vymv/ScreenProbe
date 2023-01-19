@@ -37,10 +37,11 @@ void main(){
 	int clipmapIndex = int(coord.x / clipmapResolution);
 	coord.x = coord.x % clipmapResolution;
 	
-	if(var.x == USED_PROBE_INDEX){
+	uint ProbeIndex = var.x;
+	if(ProbeIndex != INVALID_PROBE_INDEX && ProbeIndex != USED_PROBE_INDEX){
 		
 		//uint Index = atomicCounterIncrement(probeCount);
 		uint Index = imageAtomicAdd(numWorldSpacePosition, ivec2(0,0), uint(1));
-		worldspacePositionData[Index] = vec4(getProbeWorldPosition(coord, clipmapIndex),1.f);
+		worldspacePositionData[Index] = vec4(getProbeWorldPosition(coord, clipmapIndex),ProbeIndex);
 	}
 }

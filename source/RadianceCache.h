@@ -37,6 +37,7 @@ struct RadianceCacheInputs {
 	float OcclusionProbeResolution;
 	int NumProbesToTraceBudget;
 	int RadianceCacheStats;
+	int NumFramesToKeepCachedProbes;
 };
 
 struct RadianceCacheState {
@@ -63,6 +64,21 @@ protected:
 
 	shared_ptr<GBuffer> m_gbuffer;
 	shared_ptr<Texture> m_radianceProbeIndirectionTexture;
+	shared_ptr<Texture> m_lastFrameProbeIndirectionTexture;
+	shared_ptr<Texture> m_radianceProbeFreeListTexture;
+	shared_ptr<Texture> m_probeLastUsedFrameTexture;
+	shared_ptr<Texture> m_probeLastTracedFrameTexture;
+	shared_ptr<Texture> m_probeFreeListAllocator;
+	shared_ptr<Texture> m_probeAllocator;
+	shared_ptr<Texture> ProbeWorldOffset;
+
+	//clear update resources
+	shared_ptr<Texture> m_priorityHistogram;
+	shared_ptr<Texture> m_maxUpdateBucket;
+	shared_ptr<Texture> m_maxTracesFromMaxUpdateBucket;
+	shared_ptr<Texture> m_probesToUpdateTraceCost;
+	shared_ptr<Texture> m_probeTraceAllocator;
+	shared_ptr<Texture> m_probeTraceData;
 
 	//mark
 	shared_ptr<Texture> AdaptiveProbeWSPosition;
@@ -72,7 +88,15 @@ protected:
 	shared_ptr<Texture> RadianceProbeCoordToWorldPosition;
 	shared_ptr<Texture> NumRadianceProbe;
 	shared_ptr<Texture> RadianceProbeWorldPosition;
-	shared_ptr<Texture> testRadianceIndirect;
+
+	int MaxRadianceProbeCount;
+	int PRIORITY_HISTOGRAM_SIZE = 128;
+	int PROBES_TO_UPDATE_TRACE_COST_STRIDE = 2;
+
+	float RadianceCacheDownsampleDistanceFromCamera = 400.0f;
+	float RadianceCacheSupersampleDistanceFromCamera = 200.0f;
+	uint frameCount;
+
 public:
 	bool UpdateRadianceCacheState(shared_ptr<Camera> camera, RadianceCacheInputs& input, RadianceCacheState& cache);
 	void UpdateRadianceCache(RenderDevice* rd);
@@ -83,5 +107,7 @@ public:
 		shared_ptr<Texture> screenProbeWSAdaptivePositionTexture,
 		shared_ptr<Texture> screenProbeSSAdaptivePositionTexture,
 		shared_ptr<Texture> numAdaptiveScreenProbesTexture,
-		shared_ptr<GBuffer> gbuffer);
+		shared_ptr<GBuffer> gbuffer,
+		uint frameCount);
+	void SetupArgs();
 };

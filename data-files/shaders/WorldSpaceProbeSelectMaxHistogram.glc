@@ -1,0 +1,48 @@
+#version 430
+#extension GL_ARB_texture_query_lod : enable
+#extension GL_ARB_compute_variable_group_size : enable
+
+#define PRIORITY_HISTOGRAM_SIZE 128
+
+
+layout( local_size_variable ) in;
+
+
+layout(r32ui) uniform uimage2D PriorityHistogram;
+layout(r32ui) uniform uimage2D MaxUpdateBucket;
+layout(r32ui) uniform uimage2D MaxTracesFromMaxUpdateBucket;
+
+uniform int NumProbesToTraceBudget;
+
+
+
+void SelectMaxPriorityBucketCS()
+{
+	if (gl_GlobalInvocationID.x == 0)
+	{
+		uint NumTracesBudget = NumProbesToTraceBudget * 4;
+		uint TraceSum = 0;
+		uint PriorityBucketIndex = 0;
+		uint NumTracesFromPriorityBucket = NumTracesBudget;
+
+		for (; PriorityBucketIndex < PRIORITY_HISTOGRAM_SIZE; ++PriorityBucketIndex)
+		{
+			uint TilesPerBucket = imageLoad(PriorityHistogram, ivec2(PriorityBucketIndex, 0)).r;
+
+			if (TraceSum + TilesPerBucket >= NumTracesBudget)
+			{
+				NumTracesFromPriorityBucket = NumTracesBudget - TraceSum;
+				break;
+			}
+
+			TraceSum += TilesPerBucket;
+		}
+
+		imageStore(MaxUpdateBucket, ivec2(0,0), uvec4(PriorityBucketIndex));
+		imageStore(MaxTracesFromMaxUpdateBucket, ivec2(0,0), uvec4(NumTracesFromPriorityBucket));
+	}
+}
+
+void main(){
+	SelectMaxPriorityBucketCS();
+}

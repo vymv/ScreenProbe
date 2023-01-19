@@ -99,7 +99,8 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 				screenProbeWSAdaptivePositionTexture,
 				screenProbeSSAdaptivePositionTexture,
 				numAdaptiveScreenProbesTexture,
-				m_gbuffer);
+				m_gbuffer,
+				frameCount);
 			m_pRadianceCache->onGraphics3D(rd, surface3D);
 			m_pRadianceCache->debugDraw();
 		}
@@ -114,6 +115,7 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 		
 		//show(m_gbuffer_ws_position);
 	}
+	frameCount++;
 }
 
 void App::screenProbeDebugDraw() {
