@@ -38,7 +38,7 @@ void main(){
 	coord.x = coord.x % clipmapResolution;
 	
 	uint ProbeIndex = var.x;
-	if(ProbeIndex != INVALID_PROBE_INDEX && ProbeIndex != USED_PROBE_INDEX){
+	if(ProbeIndex != INVALID_PROBE_INDEX){
 		
 		//uint Index = atomicCounterIncrement(probeCount);
 		uint Index = imageAtomicAdd(numWorldSpacePosition, ivec2(0,0), uint(1));

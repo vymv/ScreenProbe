@@ -281,7 +281,7 @@ void IrradianceField::onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surf
 	generateIrradianceProbes(rd, screenProbeWSAdaptivePositionTexture, screenProbeWSUniformPositionTexture, screenProbeSSAdaptivePositionTexture, numAdaptiveScreenProbesTexture, screenTileAdaptiveProbeHeaderTexture, screenTileAdaptiveProbeIndicesTexture, m_gbuffer);
 	generateIrradianceRays(rd, m_scene);
 	sampleAndShadeIrradianceRays(rd, m_scene, surfaceArray);
-	updateIrradianceProbes(rd, m_scene);
+	/*updateIrradianceProbes(rd, m_scene);*/
 }
 
 void IrradianceField::onSceneChanged(const shared_ptr<Scene>& scene)
@@ -312,6 +312,52 @@ void IrradianceField::debugDraw() const
 
 		::debugDraw(std::make_shared<SphereShape>(probeCenter, radius), 0.0f, color * 0.8f, Color4::clear());
 	}
+}
+
+void IrradianceField::updateIndirect(shared_ptr<Framebuffer> giFrameBuffer,
+	RenderDevice* rd,
+	const Array<shared_ptr<Surface>>& surfaceArray)
+{
+	this->m_giFramebuffer = giFrameBuffer;
+
+	shared_ptr<SkyboxSurface> skyboxSurface;
+	for (const shared_ptr<Surface>& surface : surfaceArray)
+	{
+		skyboxSurface = dynamic_pointer_cast<SkyboxSurface>(surface);
+		if (skyboxSurface) { break; }
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////
+	// Perform deferred shading on the GBuffer
+	rd->push2D(m_irradianceRaysShadedFB); {
+		// Disable screen-space effects. Note that this is a COPY we're making in order to mutate it
+		LightingEnvironment e = m_scene->lightingEnvironment();
+		e.ambientOcclusionSettings.enabled = false;
+
+		Args args;
+		e.setShaderArgs(args);
+		m_irradianceRaysGBuffer->setShaderArgsRead(args, "gbuffer_");
+		args.setRect(rd->viewport());
+
+		args.setMacro("GLOSSY_TO_MATTE", m_specification.glossyToMatte);
+		auto indirect = m_giFramebuffer ? m_giFramebuffer->texture(0) : Texture::opaqueBlack();
+		args.setUniform("matteIndirectBuffer", indirect, Sampler::buffer());
+		args.setMacro("LIGHTING_MODE", LightingMode::DIRECT_INDIRECT);
+
+		args.setMacro("OVERRIDE_SKYBOX", true);
+		if (skyboxSurface) skyboxSurface->setShaderArgs(args, "skybox_");
+
+		// When rendering the probes, we don't have ray traced glossy reflections at the probe's primary ray hits,
+		// so use the environment map (won't matter, because we usually kill all glossy reflection for irradiance
+		// probes anyway since it is so viewer dependent).
+		args.setMacro("USE_GLOSSY_INDIRECT_BUFFER", false);
+		m_irradianceRayOrigins->setShaderArgs(args, "gbuffer_WS_RAY_ORIGIN_", Sampler::buffer());
+		m_irradianceRayDirections->setShaderArgs(args, "gbuffer_WS_RAY_DIRECTION_", Sampler::buffer());
+
+		LAUNCH_SHADER("shaders/GIRenderer_DeferredShade.pix", args);
+	} rd->pop2D();
+
+	updateIrradianceProbes(rd, m_scene);
 }
 
 void IrradianceField::allocateIntermediateBuffers()
@@ -438,44 +484,45 @@ void IrradianceField::sampleAndShadeArbitraryRays
 	gbuffer->texture(GBuffer::Field::GLOSSY)->update(     RTOutBuffers[3]);
 	gbuffer->texture(GBuffer::Field::EMISSIVE)->update(   RTOutBuffers[4]);
 
-	renderIndirectIllumination(rd, gbuffer, environment);
+	//renderIndirectIllumination(rd, gbuffer, environment);
 
 	// Find the skybox
-	shared_ptr<SkyboxSurface> skyboxSurface;
-	for (const shared_ptr<Surface>& surface : surfaceArray) 
-	{
-		skyboxSurface = dynamic_pointer_cast<SkyboxSurface>(surface);
-		if (skyboxSurface) { break; }
-	}
+	//shared_ptr<SkyboxSurface> skyboxSurface;
+	//for (const shared_ptr<Surface>& surface : surfaceArray) 
+	//{
+	//	skyboxSurface = dynamic_pointer_cast<SkyboxSurface>(surface);
+	//	if (skyboxSurface) { break; }
+	//}
 
-	//////////////////////////////////////////////////////////////////////////////////
-	// Perform deferred shading on the GBuffer
-	rd->push2D(targetFramebuffer); {
-		// Disable screen-space effects. Note that this is a COPY we're making in order to mutate it
-		LightingEnvironment e = environment;
-		e.ambientOcclusionSettings.enabled = false;
+	////////////////////////////////////////////////////////////////////////////////////
+	//// Perform deferred shading on the GBuffer
+	//rd->push2D(targetFramebuffer); {
+	//	// Disable screen-space effects. Note that this is a COPY we're making in order to mutate it
+	//	LightingEnvironment e = environment;
+	//	e.ambientOcclusionSettings.enabled = false;
 
-		Args args;
-		e.setShaderArgs(args);
-		gbuffer->setShaderArgsRead(args, "gbuffer_");
-		args.setRect(rd->viewport());
+	//	Args args;
+	//	e.setShaderArgs(args);
+	//	gbuffer->setShaderArgsRead(args, "gbuffer_");
+	//	args.setRect(rd->viewport());
 
-		args.setMacro("GLOSSY_TO_MATTE", glossyToMatte);
-		args.setUniform("matteIndirectBuffer", useProbeIndirect ? m_giFramebuffer->texture(0) : Texture::opaqueBlack(), Sampler::buffer());
-		args.setMacro("LIGHTING_MODE", LightingMode::DIRECT_INDIRECT);
+	//	args.setMacro("GLOSSY_TO_MATTE", glossyToMatte);
+	//	auto indirect = m_giFramebuffer ? m_giFramebuffer->texture(0) : Texture::opaqueBlack();
+	//	args.setUniform("matteIndirectBuffer", indirect, Sampler::buffer());
+	//	args.setMacro("LIGHTING_MODE", LightingMode::DIRECT_INDIRECT);
 
-		args.setMacro("OVERRIDE_SKYBOX", true);
-		if (skyboxSurface) skyboxSurface->setShaderArgs(args, "skybox_");
+	//	args.setMacro("OVERRIDE_SKYBOX", true);
+	//	if (skyboxSurface) skyboxSurface->setShaderArgs(args, "skybox_");
 
-		// When rendering the probes, we don't have ray traced glossy reflections at the probe's primary ray hits,
-		// so use the environment map (won't matter, because we usually kill all glossy reflection for irradiance
-		// probes anyway since it is so viewer dependent).
-		args.setMacro("USE_GLOSSY_INDIRECT_BUFFER", false);
-		rayOrigins->setShaderArgs(args, "gbuffer_WS_RAY_ORIGIN_", Sampler::buffer());
-		rayDirections->setShaderArgs(args, "gbuffer_WS_RAY_DIRECTION_", Sampler::buffer());
+	//	// When rendering the probes, we don't have ray traced glossy reflections at the probe's primary ray hits,
+	//	// so use the environment map (won't matter, because we usually kill all glossy reflection for irradiance
+	//	// probes anyway since it is so viewer dependent).
+	//	args.setMacro("USE_GLOSSY_INDIRECT_BUFFER", false);
+	//	rayOrigins->setShaderArgs(args, "gbuffer_WS_RAY_ORIGIN_", Sampler::buffer());
+	//	rayDirections->setShaderArgs(args, "gbuffer_WS_RAY_DIRECTION_", Sampler::buffer());
 
-		LAUNCH_SHADER("shaders/GIRenderer_DeferredShade.pix", args);
-	} rd->pop2D();
+	//	LAUNCH_SHADER("shaders/GIRenderer_DeferredShade.pix", args);
+	//} rd->pop2D();
 
 	END_PROFILER_EVENT();
 }
@@ -610,7 +657,7 @@ void IrradianceField::generateIrradianceProbes(RenderDevice* rd,
 		m_irradianceRayDirections = Texture::createEmpty("IrradianceField::m_irradianceRayDirections", rayDimX, rayDimY, ImageFormat::RGBA32F());
 		m_irradianceRaysFB = Framebuffer::create(m_irradianceRayOrigins, m_irradianceRayDirections);
 		m_irradianceRaysShadedFB = Framebuffer::create(Texture::createEmpty("IrradianceField::m_irradianceRaysShadedFB", rayDimX, rayDimY, ImageFormat::RGB32F()));
-		m_giFramebuffer = Framebuffer::create(Texture::createEmpty("IrradianceField::matte indirect", rayDimX, rayDimY, ImageFormat::RGBA32F()));
+		//m_giFramebuffer = Framebuffer::create(Texture::createEmpty("IrradianceField::matte indirect", rayDimX, rayDimY, ImageFormat::RGBA32F()));
 	}
 
 	static int oldIrradianceSide = 0;

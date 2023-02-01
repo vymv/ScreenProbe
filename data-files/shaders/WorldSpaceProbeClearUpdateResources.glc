@@ -9,11 +9,11 @@
 
 layout( local_size_variable ) in;
 
+layout(std430, binding=0) buffer maxUpdateBucket { uint MaxUpdateBucket[];};
 
 
 layout(r32ui) uniform uimage2D ProbeTraceAllocator;
 
-layout(r32ui) uniform uimage2D MaxUpdateBucket;
 
 layout(r32ui) uniform uimage2D MaxTracesFromMaxUpdateBucket;
 
@@ -29,7 +29,7 @@ void main(){
 	if (index < 1)
 	{
 		imageStore(ProbeTraceAllocator, ivec2(index, 0), uvec4(0));
-		imageStore(MaxUpdateBucket, ivec2(index, 0), uvec4(0));
+		MaxUpdateBucket[index] = 0;
 		imageStore(MaxTracesFromMaxUpdateBucket, ivec2(index,0), uvec4(0));
 
 	}

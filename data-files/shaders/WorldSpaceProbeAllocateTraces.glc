@@ -2,12 +2,13 @@
 #extension GL_ARB_texture_query_lod : enable
 #extension GL_ARB_compute_variable_group_size : enable
 //#include "WorldSpaceProbe_Common.pix"
+
 #define USED_PROBE_INDEX 0xFFFFFFFE
 #define RADIANCE_PROBE_MAX_CLIPMAPS 4
 #define INVALID_PROBE_INDEX 0xFFFFFFFF
 #define PROBE_FRAME_INDEX_NEVER_TRACED 0
 #define MAX_UPDATE_FREQUENCY 7.0f
-
+#define FINAL_ATLAS_RESOLUSION 128*16
 #define PRIORITY_HISTOGRAM_SIZE 128
 
 
@@ -15,17 +16,17 @@ layout( local_size_variable ) in;
 
 
 layout(std430, binding=0) buffer radianceProbeCoordToWorldPosition {vec4 RadianceProbeCoordToWorldPosition[];};
-
+layout(std430, binding=1) buffer maxUpdateBucket { uint MaxUpdateBucket[];};
 
 layout(r32ui) uniform uimage3D RadianceProbeIndirectionTexture;
 layout(r32ui) uniform uimage2D ProbeLastUsedFrame;
 layout(r32ui) uniform uimage2D ProbeLastTracedFrame;
 
-layout(r32ui) uniform uimage2D MaxUpdateBucket;
 layout(r32ui) uniform uimage2D MaxTracesFromMaxUpdateBucket;
 layout(r32ui) uniform uimage2D ProbesToUpdateTraceCost;
 layout(r32ui) uniform uimage2D ProbeTraceAllocator;
 layout(rgba32f) uniform image2D ProbeTraceData;
+
 
 uniform uint FrameNumber;
 
@@ -60,7 +61,6 @@ uint GetPriorityBucketIndex(uint LastTracedFrameIndex, uint LastUsedFrameIndex, 
 			const float DistanceFromViewer = sqrt(dot(CameraVector, CameraVector));
 			Frequency = MAX_UPDATE_FREQUENCY - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MAX_UPDATE_FREQUENCY);
 		}
-
 		// [1;N]
 		float UpdateImportance = FramesBetweenTracedAndUsed * (Frequency + 1.0f);
 
@@ -106,7 +106,7 @@ void AllocateProbeTracesCS()
 
 		if (ProbeIndex < MaxProbeCount)
 		{
-			const uint MaxUpdateBucketIndex = imageLoad(MaxUpdateBucket, ivec2(0,0)).r;
+			uint MaxUpdateBucketIndex = MaxUpdateBucket[0];
 			const uint LocalMaxTracesFromMaxUpdateBucket = imageLoad(MaxTracesFromMaxUpdateBucket, ivec2(0,0)).r;
 
 			const uint ProbeTraceCost = GetProbeTraceCost(ProbeWorldPosition);
@@ -117,7 +117,8 @@ void AllocateProbeTracesCS()
 			const uint PriorityBucketIndex = GetPriorityBucketIndex(LastTracedFrameIndex, LastUsedFrameIndex, ProbeWorldPosition);
 
 			bool bTraceProbe = PriorityBucketIndex <= MaxUpdateBucketIndex;
-
+			
+			//imageStore(ProbeWorldOffset, ivec2(ProbeIndex %128, ProbeIndex /128), vec4(PriorityBucketIndex));
 			// Can't trace more than MaxTracesFromMaxUpdateBucket from the last bucket
 			// Make an exception for the first bucket, as it contains probes without valid data
 			if (bTraceProbe && PriorityBucketIndex == MaxUpdateBucketIndex && MaxUpdateBucketIndex > 0)
@@ -131,13 +132,13 @@ void AllocateProbeTracesCS()
 					bTraceProbe = false;
 				}
 			}
-
+			
 			if (bTraceProbe)
 			{
+				
 				imageAtomicAdd(ProbesToUpdateTraceCost, ivec2(0, 0), ProbeTraceCost);
-
 				uint TraceIndex = imageAtomicAdd(ProbeTraceAllocator, ivec2(0, 0), 1);
-
+				
 				imageStore(ProbeTraceData, ivec2(TraceIndex, 0), vec4(ProbeWorldPosition, uintBitsToFloat((ClipmapIndex << 24) | ProbeIndex)));
 				imageStore(ProbeLastTracedFrame, ivec2(ProbeIndex, 0), uvec4(FrameNumber));
 			}

@@ -98,6 +98,27 @@
     <None Include="data-files\shaders\WorldSpaceProbeAllocateTraces.glc">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="data-files\shaders\WorldSpaceProbeGenerateRays.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbePrepareShadingResources.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbeClearTraceResources.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbeComputeIndirect.pix">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbeDeferredShading.pix">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbeUpdateRadiance.glc">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="data-files\shaders\WorldSpaceProbeUpdateRadianceRast.pix">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">

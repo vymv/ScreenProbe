@@ -302,4 +302,7 @@ public:
 	static Color3 probeCoordVisualizationColor(Point3int32 P);
 
 	void debugDraw() const;
+
+	void updateIndirect(shared_ptr<Framebuffer> m_giFrameBuffer, RenderDevice* rd,
+		const Array<shared_ptr<Surface>>& surfaceArray);
 };

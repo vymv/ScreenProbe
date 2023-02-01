@@ -15,8 +15,10 @@ layout(r32i) uniform iimage2D ProbeFreeListAllocator;
 
 uniform int MaxProbeCount;
 
+
 void main(){
 	uint index = gl_GlobalInvocationID.x;
+	#if FirstFame
 	if(index == 0){
 		imageStore(ProbeFreeListAllocator, ivec2(0,0), ivec4(0));
 	}
@@ -25,5 +27,13 @@ void main(){
 		imageStore(LastFrameUsedProbe, ivec2(index,0), uvec4(0));
 		imageStore(ProbeWorldOffset, ivec2(index, 0), vec4(0.f));
 	}
+	#else
+	if(index==0){
+		int count = imageLoad(ProbeFreeListAllocator, ivec2(0,0)).r;
+		if(count < 0) imageStore(ProbeFreeListAllocator, ivec2(0,0), ivec4(0));
+	}
+	
+	
+	#endif
 
 }

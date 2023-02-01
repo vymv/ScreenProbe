@@ -55,9 +55,9 @@ void App::onInit()
 	m_pGIRenderer->setDeferredShading(true);
 	m_pGIRenderer->setOrderIndependentTransparency(true);
 
-	//String SceneName = "Dragon (Dynamic Light Source)";
+	String SceneName = "Dragon (Dynamic Light Source)";
 	//String SceneName = "G3D Breakfast Room";
-	String SceneName = "G3D Living Room (Area Lights)";
+	//String SceneName = "G3D Living Room (Area Lights)";
 	//String SceneName = "G3D Living Room";
 	//String SceneName = "BathRoom";
 	//String SceneName = "Living Room (Screen Probe)";
@@ -94,14 +94,17 @@ void App::onGraphics3D(RenderDevice * rd, Array<shared_ptr<Surface>>& surface3D)
 				screenTileAdaptiveProbeHeaderTexture, 
 				screenTileAdaptiveProbeIndicesTexture, 
 				m_gbuffer);
-
+			
 			m_pRadianceCache->setupInputs(activeCamera(),
-				screenProbeWSAdaptivePositionTexture,
-				screenProbeSSAdaptivePositionTexture,
-				numAdaptiveScreenProbesTexture,
-				m_gbuffer,
+				m_pIrradianceField->m_irradianceRayOrigins,
+				m_pIrradianceField->m_irradianceRayDirections,
+				m_pIrradianceField->m_irradianceRaysGBuffer,
+				m_pIrradianceField->m_sceneTriTree,
 				frameCount);
+
+			
 			m_pRadianceCache->onGraphics3D(rd, surface3D);
+			m_pIrradianceField->updateIndirect(m_pRadianceCache->m_radianceHitPointIndirectFB, rd, surface3D);
 			m_pRadianceCache->debugDraw();
 		}
 
@@ -167,6 +170,7 @@ void App::onAfterLoadScene(const Any & any, const String & sceneName)
 	m_pIrradianceField->onSceneChanged(scene());
 	m_pGIRenderer->setIrradianceField(m_pIrradianceField);
 	m_pRadianceCache = std::make_shared<RadianceCache>();
+	m_pRadianceCache->onSceneChanged(scene());
 }
 
 void App::makeGUI()

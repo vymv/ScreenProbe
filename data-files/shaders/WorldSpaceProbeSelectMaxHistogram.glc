@@ -7,9 +7,9 @@
 
 layout( local_size_variable ) in;
 
+layout(std430, binding=0) buffer maxUpdateBucket { uint MaxUpdateBucket[];};
 
 layout(r32ui) uniform uimage2D PriorityHistogram;
-layout(r32ui) uniform uimage2D MaxUpdateBucket;
 layout(r32ui) uniform uimage2D MaxTracesFromMaxUpdateBucket;
 
 uniform int NumProbesToTraceBudget;
@@ -18,12 +18,12 @@ uniform int NumProbesToTraceBudget;
 
 void SelectMaxPriorityBucketCS()
 {
-	if (gl_GlobalInvocationID.x == 0)
+	if (gl_GlobalInvocationID.x < 1)
 	{
 		uint NumTracesBudget = NumProbesToTraceBudget * 4;
 		uint TraceSum = 0;
 		uint PriorityBucketIndex = 0;
-		uint NumTracesFromPriorityBucket = NumTracesBudget;
+		uint NumTracesFromPriorityBucket = NumTracesBudget; //800
 
 		for (; PriorityBucketIndex < PRIORITY_HISTOGRAM_SIZE; ++PriorityBucketIndex)
 		{
@@ -32,13 +32,14 @@ void SelectMaxPriorityBucketCS()
 			if (TraceSum + TilesPerBucket >= NumTracesBudget)
 			{
 				NumTracesFromPriorityBucket = NumTracesBudget - TraceSum;
+				TraceSum += TilesPerBucket;
 				break;
 			}
 
 			TraceSum += TilesPerBucket;
 		}
 
-		imageStore(MaxUpdateBucket, ivec2(0,0), uvec4(PriorityBucketIndex));
+		MaxUpdateBucket[0] = PriorityBucketIndex;
 		imageStore(MaxTracesFromMaxUpdateBucket, ivec2(0,0), uvec4(NumTracesFromPriorityBucket));
 	}
 }

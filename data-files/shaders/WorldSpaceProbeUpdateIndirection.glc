@@ -28,7 +28,7 @@ layout(r32ui) uniform uimage3D RadianceProbeIndirectionTexture;
 layout(r32ui) uniform uimage3D LastFrameRadianceProbeIndirectionTexture;
 layout(r32ui) uniform uimage2D ProbeLastUsedFrame;
 layout(r32ui) uniform uimage2D ProbeFreeList;
-
+layout(rgba8) uniform image2D reverseProbeIndex;
 
 uniform uint FrameNumber;
 
@@ -60,15 +60,16 @@ void UpdateCacheForUsedProbesCS(){
 	}
 	if (ClipmapIndex < RADIANCE_PROBE_MAX_CLIPMAPS && all(lessThan(LastFrameProbeCoord, ivec3(RadianceProbeClipmapResolution))))
 	{
-		ivec3 LastFrameProbeIndirectionTextureCoord = ivec3(LastFrameProbeCoord.x + ClipmapIndex * RadianceProbeClipmapResolution, LastFrameProbeCoord.yz);
+		ivec3 LastFrameProbeIndirectionTextureCoord = ivec3(gl_GlobalInvocationID);
 		uint LastFrameProbeIndex = imageLoad(LastFrameRadianceProbeIndirectionTexture, LastFrameProbeIndirectionTextureCoord).r;
 
 		if (LastFrameProbeIndex != INVALID_PROBE_INDEX)
 		{
 			vec3 ProbeWorldPosition = LastFrameProbeCoord * LastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex].w + LastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex].xyz;
 			ivec3 ProbeCoord = GetRadianceProbeCoord(ProbeWorldPosition, ClipmapIndex);
-
+			
 			bool bReused = false;
+			
 			/*
 			if marked probe was used in prev valid frame, reuse it, which means we don't need to allocate radiance cache for it later.
 			*/
@@ -77,17 +78,18 @@ void UpdateCacheForUsedProbesCS(){
 				ivec3 ProbeIndirectionTextureCoord = ivec3(ProbeCoord.x + ClipmapIndex * RadianceProbeClipmapResolution, ProbeCoord.yz);
 				uint ProbeUsedMarker = imageLoad(RadianceProbeIndirectionTexture, ProbeIndirectionTextureCoord).r;
 				uint LastUsedFrameNumber = imageLoad(ProbeLastUsedFrame, ivec2(LastFrameProbeIndex,0)).r;
-
+					
 				if (ProbeUsedMarker == USED_PROBE_INDEX
 					|| FrameNumber - LastUsedFrameNumber < NumFramesToKeepCachedProbes)
 				{
 					bReused = true;
-
 					if (ProbeUsedMarker == USED_PROBE_INDEX)
 					{
 						imageStore(ProbeLastUsedFrame, ivec2(LastFrameProbeIndex,0), uvec4(FrameNumber));
 					}
 					imageStore(RadianceProbeIndirectionTexture, ProbeIndirectionTextureCoord, uvec4(LastFrameProbeIndex));
+				
+					imageStore(reverseProbeIndex, ivec2(LastFrameProbeIndex %128, LastFrameProbeIndex /128), vec4(ProbeWorldPosition, 0));
 				}
 			}
 			/*

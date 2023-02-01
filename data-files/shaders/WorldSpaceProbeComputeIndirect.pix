@@ -1,0 +1,223 @@
+#version 430
+#extension GL_ARB_texture_query_lod : enable
+
+#include <GBuffer/GBuffer.glsl>
+#include <g3dmath.glsl>
+#include <Texture/Texture.glsl>
+#include <octahedral.glsl>
+//
+
+#define NumRadianceProbeClipmapsForMark 4
+#define INVALID_PROBE_INDEX 0xFFFFFFFF
+#define RAY_UNUSED 0xFFFFFFFF
+#define PROBE_UNUSED 0xFFFFFFFF
+#define AtlasResolutionInProbe 128
+#define RadianceProbeResolution 16
+#define AtlasResolution AtlasResolutionInProbe * RadianceProbeResolution
+
+
+struct RadianceProbeCoord
+{
+	vec3 ProbeMinCoord;
+	vec3 ProbeMaxCoord;
+    vec3 ProbeCoordFloat;
+	uint  ClipmapIndex;
+};
+
+layout(std430, binding=0) buffer rayMarker {uvec2 RayMarker [AtlasResolutionInProbe][AtlasResolutionInProbe];};
+layout(std430, binding=1) buffer worldPositionToRadianceProbeCoordForMark {vec4 WorldPositionToRadianceProbeCoordForMark[];};
+layout(std430, binding=2) buffer radianceProbeCoordToWorldPosition {vec4 RadianceProbeCoordToWorldPosition[];};
+
+layout(r32ui) uniform uimage3D RadianceProbeIndirectionTexture; 
+
+uniform_Texture(sampler2D, m_RadianceCache_);
+
+uniform_Texture(sampler2D, m_RadianceCacheDepth_);
+
+uniform_Texture(sampler2D, gbuffer_WS_RAY_ORIGIN_);
+
+uniform_GBuffer(gbuffer_);
+
+uniform float normalBias;
+uniform float energyPreservation;
+
+out vec4 E_lambertianIndirect;
+
+
+
+uniform int RadianceProbeClipmapResolution;
+uniform float InvClipmapFadeSize;
+
+uniform sampler2D   ws_positionTexture;
+uniform sampler2D   ws_normalTexture;
+
+void GetBilinearInterpolation(vec3 ProbeCoordFloat, out float weights[8]){
+    vec3 dd = ceil(ProbeCoordFloat) - ProbeCoordFloat;
+    float tx = 1 - dd.x;
+    float ty = 1 - dd.y;
+    float tz = 1 - dd.z;
+    for(int i = 0; i < 8; i++){
+        int idz = i / 4;
+        int idy = (i % 4) / 2;
+        int idx = (i % 4) % 2;
+        weights[i] = (idx * tx + (1-idx) * (1-tx)) *
+        (idy * ty + (1-idy) * (1-ty)) *
+        (idz * tz + (1-idz) * (1-tz));
+    }
+}
+
+RadianceProbeCoord GetRadianceProbeCoord(vec3 WorldSpacePosition, float ClipmapDitherRandom)
+{
+	RadianceProbeCoord Out;
+	Out.ClipmapIndex = NumRadianceProbeClipmapsForMark;
+
+	uint ClipmapIndex = 0;
+	for (; ClipmapIndex < NumRadianceProbeClipmapsForMark; ++ClipmapIndex)
+	{
+		vec3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordForMark[ClipmapIndex].w + WorldPositionToRadianceProbeCoordForMark[ClipmapIndex].xyz;
+		vec3 BottomEdgeFades = clamp((ProbeCoordFloat - .5f) * InvClipmapFadeSize, 0.0, 1.0);
+		vec3 TopEdgeFades = clamp((vec3(RadianceProbeClipmapResolution) - .5f - ProbeCoordFloat) * InvClipmapFadeSize , 0.0, 1.0);
+		float EdgeFade = min(min(BottomEdgeFades.x, min(BottomEdgeFades.y, BottomEdgeFades.z)), min(TopEdgeFades.x, min(TopEdgeFades.y, TopEdgeFades.z)));
+
+		ivec3 ProbeMinCoord;
+		ivec3 ProbeMaxCoord;
+
+		ProbeMinCoord = ivec3(floor(ProbeCoordFloat - 0.5f));
+		ProbeMaxCoord = ProbeMinCoord + 1;
+
+		if (EdgeFade > ClipmapDitherRandom)
+		{
+			Out.ProbeMinCoord = ProbeMinCoord;
+			Out.ProbeMaxCoord = ProbeMaxCoord;
+            Out.ProbeCoordFloat = ProbeCoordFloat - .5f;
+			Out.ClipmapIndex  = ClipmapIndex;
+			return Out;
+		}
+	}
+
+	return Out;
+}
+
+vec2 textureCoordFromDirection(vec3 dir, int probeIndex)
+{
+    vec2 normalizedOctCoord = octEncode(normalize(dir));
+    //vec2 normalizedOctCoord = vec2(0);
+    vec2 normalizedOctCoordZeroOne = (normalizedOctCoord + vec2(1.0f)) * 0.5f;
+    float ProbeResolution = RadianceProbeResolution;
+    float fullWidth = AtlasResolution;
+    vec2 octCoordNormalizedToTextureDimensions = (normalizedOctCoordZeroOne * ProbeResolution) / fullWidth;
+
+    // Add (2,2) back to texCoord within larger texture. Compensates for 1 pix 
+    // border around texture and further 1 pix border around top left probe.
+    vec2 probeTopLeftPosition = vec2(mod(probeIndex, AtlasResolutionInProbe) * RadianceProbeResolution,
+        (probeIndex / AtlasResolutionInProbe) * RadianceProbeResolution);
+
+    
+    vec2 normalizedProbeTopLeftPosition = probeTopLeftPosition / fullWidth;
+
+    return normalizedProbeTopLeftPosition + octCoordNormalizedToTextureDimensions;
+}
+
+void GetRadianceprobeIndex(vec3 worldPosition, out uint probeIndex[8], out vec3 ProbePositions[8], out float bilinearWeights[8]){
+    uint ClipmapIndex = 0;
+    RadianceProbeCoord probeCoord = GetRadianceProbeCoord(worldPosition, 0.f);
+    GetBilinearInterpolation(probeCoord.ProbeCoordFloat, bilinearWeights);
+    ClipmapIndex = probeCoord.ClipmapIndex;
+    ivec3 probeCoordBase = ivec3(probeCoord.ProbeMinCoord.x + probeCoord.ClipmapIndex * RadianceProbeClipmapResolution, probeCoord.ProbeMinCoord.yz);
+    ivec3 probeCoords[] = {
+    probeCoordBase, 
+    probeCoordBase + ivec3(1,0,0),
+    probeCoordBase + ivec3(0,1,0),
+    probeCoordBase + ivec3(1,1,0),
+    probeCoordBase + ivec3(0,0,1),
+    probeCoordBase + ivec3(1,0,1),
+    probeCoordBase + ivec3(0,1,1),
+    probeCoordBase + ivec3(1,1,1)};
+    for(int i = 0; i < 8; i++){
+        if(all(greaterThanEqual(probeCoords[i], ivec3(0))) && all(lessThan(probeCoords[i], ivec3(RadianceProbeClipmapResolution))))
+            probeIndex[i] = imageLoad(RadianceProbeIndirectionTexture, probeCoords[i]).r;
+        else probeIndex[i] = INVALID_PROBE_INDEX;
+        ProbePositions[i] = ivec3(probeCoords[i].x % RadianceProbeClipmapResolution, probeCoords[i].yz) * RadianceProbeCoordToWorldPosition[probeCoord.ClipmapIndex].w + RadianceProbeCoordToWorldPosition[probeCoord.ClipmapIndex].xyz;
+    }
+    
+}
+
+ivec2 GetProbeAtlasCoord(uint probeIndex){
+    return ivec2(probeIndex % AtlasResolutionInProbe, probeIndex / AtlasResolutionInProbe) * RadianceProbeResolution;
+}
+
+vec4 CalculateRadianceSampleInterpolationWeights(ivec2 rectCoord, vec3 wsPosition, float sceneDepth, vec3 worldNormal){
+
+    vec4 result = vec4(0);
+    #ifndef OUT_INDIRECT
+    ivec2 probeCoord = rectCoord / RadianceProbeResolution;
+    uvec2 mark = RayMarker[probeCoord.y][probeCoord.x];
+    if(mark.x == INVALID_PROBE_INDEX)
+        return result;
+    #endif
+    uint probeIndex[8];
+    float bilinearWeights[8];
+    vec3 _ProbePositions[8];
+    GetRadianceprobeIndex(wsPosition, probeIndex, _ProbePositions, bilinearWeights);
+    float epsilon = .001f;
+    float sumWeight;
+    for(int i = 0; i < 8; i++){
+        float weight = 1.f;
+        bool valid = true;
+        if(probeIndex[i] == INVALID_PROBE_INDEX){
+            valid = false;
+        }
+        if(valid){
+            
+//            float cosDirection = (dot(normalize(_ProbePositions[i] - wsPosition), normalize(worldNormal)) + 1.0) * 0.5 + 0.2;
+//            cosDirection = cosDirection < 0.1f ? 0 : cosDirection;
+//            weight *= cosDirection;
+            vec3 trueDirectionToProbe = normalize(_ProbePositions[i] - wsPosition);
+            weight *= square(max(0.0001, (dot(trueDirectionToProbe, worldNormal) + 1.0) * 0.5)) + 0.2;
+        
+            weight *= bilinearWeights[i];
+            vec3 w_o = normalize(texelFetch(gbuffer_WS_RAY_ORIGIN_buffer, rectCoord, 0).xyz - wsPosition);
+            {
+                vec3 probeToPoint = wsPosition - _ProbePositions[i] + (worldNormal + 3.0 * w_o) * normalBias;
+                vec3 dir = normalize(-probeToPoint);
+                vec2 texCoord = textureCoordFromDirection(-dir, int(probeIndex[i]));
+
+                float distToProbe = length(probeToPoint);
+
+                vec2 temp = texture(m_RadianceCacheDepth_buffer, texCoord, 0).rg;
+                float mean = temp.x;
+                float variance = abs(square(temp.x) - temp.y);
+
+            // http://www.punkuser.net/vsm/vsm_paper.pdf; equation 5
+            // Need the max in the denominator because biasing can cause a negative displacement
+                float chebyshevWeight = variance / (variance + square(max(distToProbe - mean, 0.0)));
+                
+            // Increase contrast in the weight 
+                chebyshevWeight = max(pow3(chebyshevWeight), 0.0);
+
+                weight *= (distToProbe <= mean) ? 1.0 : chebyshevWeight;
+            }
+            vec2 atlasCoord = textureCoordFromDirection(worldNormal, int(probeIndex[i]));
+            vec4 irradiance = vec4(texture(m_RadianceCache_buffer, atlasCoord).rgb, 0);
+            result += irradiance * weight;
+            sumWeight += weight;
+        }
+    }
+    if(sumWeight > epsilon)
+        return result / sumWeight;
+    return result;
+//    return Color3(255,1,1);
+     
+    
+}
+
+
+void main(){
+	ivec2 rectCoord = ivec2(gl_FragCoord.xy);
+    vec3 wsPos = texelFetch(ws_positionTexture, rectCoord, 0).rgb;
+    //float depth = texelFetch(depthTexture, rectCoord, 0).r;
+    vec3 wsNormal = texelFetch(ws_normalTexture, rectCoord, 0).rgb;
+
+    E_lambertianIndirect = CalculateRadianceSampleInterpolationWeights(rectCoord, wsPos, 0, wsNormal) /** 2 * pi * energyPreservation*/;
+    
+}

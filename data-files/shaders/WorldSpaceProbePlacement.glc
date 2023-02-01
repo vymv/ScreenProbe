@@ -15,27 +15,11 @@ struct RadianceProbeCoord
 	uint  ClipmapIndex;
 };
 
-layout(std430, binding=0) buffer adaptiveProbeWSPosition {
-    vec4 adaptiveProbeWSPosData[];
-};
+layout(std430, binding=0) buffer worldPositionToRadianceProbeCoordForMark {vec4 WorldPositionToRadianceProbeCoordForMark[];};
 
-layout(std430, binding=1) buffer adaptiveProbeSSPosition {
-    vec4 adaptiveProbeSSPosData[];
-};
-
-layout(std430, binding=2) buffer adaptiveProbeNum{int adaptiveProbeNumData[];};
-
-layout(std430, binding=3) buffer worldPositionToRadianceProbeCoordForMark {vec4 WorldPositionToRadianceProbeCoordForMark[];};
-
-layout(std430, binding=4) buffer radianceProbeCoordToWorldPosition {vec4 RadianceProbeCoordToWorldPosition[];};
+layout(std430, binding=1) buffer radianceProbeCoordToWorldPosition {vec4 RadianceProbeCoordToWorldPosition[];};
 
 layout(r32ui) uniform uimage3D RadianceProbeIndirectionTexture;
-
-uniform ivec2 ScreenProbeAtlasViewSize;
-uniform ivec2 ScreenProbeViewSize;
-uniform int ScreenProbeDownsampleFactor; 
-uniform int NumUniformScreenProbes;
-uniform int MaxNumAdaptiveProbes;
 
 
 uniform int NumRadianceProbeClipmapsForMark;
@@ -44,31 +28,7 @@ uniform float InvClipmapFadeSizeForMark;
 
 // Texture
 uniform sampler2D   ws_positionTexture;
-uniform sampler2D   depthTexture;
 uniform sampler2D   ws_normalTexture;
-
-ivec2 GetScreenProbeScreenPosition(uint ScreenProbeIndex)
-{
-	ivec2 ScreenProbeAtlasCoord = ivec2(ScreenProbeIndex % ScreenProbeViewSize.x, ScreenProbeIndex / ScreenProbeViewSize.x);
-	ivec2 ScreenProbeScreenPosition = ivec2(ScreenProbeAtlasCoord * ScreenProbeDownsampleFactor);
-
-	if (ScreenProbeIndex >= NumUniformScreenProbes)
-	{
-		ScreenProbeScreenPosition = ivec2(adaptiveProbeSSPosData[ScreenProbeIndex - NumUniformScreenProbes].rg);
-	}
-
-	return ScreenProbeScreenPosition;
-}
-
-int GetNumAdaptiveScreenProbes()
-{
-	return min(adaptiveProbeNumData[0], MaxNumAdaptiveProbes);
-}
-
-int GetNumScreenProbes()
-{
-	return NumUniformScreenProbes + GetNumAdaptiveScreenProbes();
-}
 
 
 bool IsValidRadianceCacheClipmapForMark(uint InClipmapIndex)
@@ -153,28 +113,22 @@ void MarkPositionUsedInIndirectionTexture(vec3 WorldPosition, uint ClipmapIndex)
 
 void MarkRadianceProbesUsedByScreenProbesCS()
 {
-	ivec2 ScreenProbeAtlasCoord = ivec2(gl_GlobalInvocationID.xy);
-	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-	ivec2 screenCoord = GetScreenProbeScreenPosition(ScreenProbeIndex);
+	ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
 
-	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
-	{
-		float SceneDepth = texelFetch(depthTexture, screenCoord, 0).r;
-		vec3 WorldPosition = texelFetch(ws_positionTexture, screenCoord + ivec2(0.5, 0.5), 0).rgb;
+	vec3 WorldPosition = texelFetch(ws_positionTexture, coord + ivec2(0.5, 0.5), 0).rgb;
 		
-		if (SceneDepth > 0)
-		{
-			uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
 
-			if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
-			{
-				//@todo - cull by screen size
-				//@todo - cull probes too small for voxel tracing and too large for max trace distance
-				MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+	uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
 
-			}
-		}
+	if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
+	{
+		//@todo - cull by screen size
+		//@todo - cull probes too small for voxel tracing and too large for max trace distance
+		MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
+
 	}
+	
+	
 }
 
 void main(){

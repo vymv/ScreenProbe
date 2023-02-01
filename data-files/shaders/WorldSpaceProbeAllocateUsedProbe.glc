@@ -26,6 +26,7 @@ layout(r32ui) uniform uimage2D ProbeLastUsedFrame;
 layout(r32ui) uniform uimage2D ProbeLastTracedFrame;
 layout(r32ui) uniform uimage2D ProbeFreeList;
 layout(r32ui) uniform uimage2D PriorityHistogram;
+layout(rgba32f) uniform image2D ProbeWorldOffset;
 
 uniform uint FrameNumber;
 
@@ -60,7 +61,6 @@ uint GetPriorityBucketIndex(uint LastTracedFrameIndex, uint LastUsedFrameIndex, 
 			const float DistanceFromViewer = sqrt(dot(CameraVector, CameraVector));
 			Frequency = MAX_UPDATE_FREQUENCY - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MAX_UPDATE_FREQUENCY);
 		}
-
 		// [1;N]
 		float UpdateImportance = FramesBetweenTracedAndUsed * (Frequency + 1.0f);
 
@@ -134,6 +134,8 @@ void AllocateUsedProbesCS()
 				else
 				{
 					ProbeIndex = imageAtomicAdd(ProbeAllocator, ivec2(0, 0), 1);
+					
+				
 				}
 				
 				imageStore(ProbeLastTracedFrame, ivec2(ProbeIndex, 0), uvec4(PROBE_FRAME_INDEX_NEVER_TRACED));
@@ -148,15 +150,16 @@ void AllocateUsedProbesCS()
 				ProbeIndex = ProbeUsedMarker;
 				LastTracedFrameIndex = imageLoad(ProbeLastTracedFrame, ivec2(ProbeIndex,0)).r;
 				LastUsedFrameIndex = imageLoad(ProbeLastUsedFrame, ivec2(ProbeIndex,0)).r;
+				
 			}
-
+			
 			if (ProbeIndex < MaxProbeCount)
 			{
 				// Update histogram
 				const uint PriorityBucketIndex = GetPriorityBucketIndex(LastTracedFrameIndex, LastUsedFrameIndex, ProbeWorldPosition);
 				uint ProbeTraceCost = GetProbeTraceCost(ProbeWorldPosition);
+				imageStore(ProbeWorldOffset, ivec2(ProbeIndex, 0), vec4(ProbeWorldPosition, 0));
 				imageAtomicAdd(PriorityHistogram, ivec2(PriorityBucketIndex,0), ProbeTraceCost);
-
 				imageStore(RadianceProbeIndirectionTexture, ivec3(gl_GlobalInvocationID), uvec4(ProbeIndex));
 			}
 			else
