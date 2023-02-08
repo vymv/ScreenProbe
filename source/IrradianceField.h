@@ -187,7 +187,7 @@ public:
 	// Added
 	int									adaptiveProbeCount;
 	int									screenProbeDownsampleFactor = 16;
-
+	
 
 	void sampleAndShadeArbitraryRays
 	(RenderDevice*								rd,
@@ -248,7 +248,9 @@ public:
 	const int depthOctSideLength() {
 		return m_specification.depthOctResolution;
 	}
-
+	const float maxAdaptiveFactor() {
+		return m_specification.maxAdaptiveFactor;
+	}
 	//void setIrradianceOctSideLength(int sideLengthSize, RenderDevice* rd) {
 	//	m_specification.irradianceOctResolution = sideLengthSize;
 	//	generateIrradianceProbes(rd);
@@ -302,4 +304,7 @@ public:
 	static Color3 probeCoordVisualizationColor(Point3int32 P);
 
 	void debugDraw() const;
+
+	void updateIndirect(shared_ptr<Framebuffer> m_giFrameBuffer, RenderDevice* rd,
+		const Array<shared_ptr<Surface>>& surfaceArray);
 };

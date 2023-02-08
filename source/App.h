@@ -11,6 +11,7 @@ class App : public GApp
 	shared_ptr<RadianceCache> m_pRadianceCache;
 	bool m_firstFrame = true;
 	bool m_staticProbe = true;
+	int frameCount = 0;
 	float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
 
 	//shared_ptr<Texture> m_gbuffer_depth;

@@ -29,7 +29,7 @@ void CGIRenderer::renderDeferredShading(RenderDevice * rd, const Array<shared_pt
 			args.setUniform("adaptiveProbeSSPosData", m_pIrradianceField->screenProbeSSAdaptivePositionTexture, Sampler::buffer());
 			args.setUniform("screenTileHeaderData", m_pIrradianceField->screenTileAdaptiveProbeHeaderTexture, Sampler::buffer());
 			args.setUniform("screenTileProbeIndex", m_pIrradianceField->screenTileAdaptiveProbeIndicesTexture, Sampler::buffer());
-
+			args.setUniform("maxAdaptiveFactor", m_pIrradianceField->maxAdaptiveFactor());
 			LAUNCH_SHADER("shaders/GIRenderer_ComputeIndirect.pix", args);
 		} rd->pop2D();
 	}

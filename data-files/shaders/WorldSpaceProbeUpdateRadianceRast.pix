@@ -1,0 +1,106 @@
+#version 430 // -*- c++ -*-
+
+#include <g3dmath.glsl>
+#include <Texture/Texture.glsl>
+//
+//#include "GridHelpers.glsl"
+#include <octahedral.glsl>
+
+#define RadianceProbeResolution 16
+#define AtlasResolutionInProbe 128
+#define AtlasResolution AtlasResolutionInProbe * RadianceProbeResolution
+#define RAY_UNUSED 0xFFFFFFFF
+#define INVALID_PROBE_INDEX 0xFFFFFFFF
+
+layout(std430, binding=0) buffer rayMarker{ uvec2 RayMarker[AtlasResolutionInProbe][AtlasResolutionInProbe];};
+
+uniform Texture2D                 rayDirections;
+uniform Texture2D                 rayHitLocations;
+uniform Texture2D                 rayHitRadiance;
+uniform Texture2D                 rayHitNormals;
+uniform Texture2D                 rayOrigins;
+
+#if Radiance
+layout(rgba32f) uniform image2D RadianceCache;
+#else
+layout(rgba32f) uniform image2D RadianceCacheDepth;
+#endif
+
+uniform int                       probeSideLength;
+uniform float                     maxDistance;
+uniform float                     energyConservation;
+
+//uniform IrradianceField           irradianceField;
+
+uniform float                     hysteresis;
+uniform float                     depthSharpness;
+const   float                     epsilon = 1e-6;
+
+out vec4 result;
+
+// Compute normalized oct coord, mapping top left of top left pixel to (-1,-1) 该纹素在对应的Probe的一小块Texture中，处于什么位置，用以计算对应的direction
+vec2 normalizedOctCoord(ivec2 rayAtlasCoord) {
+
+    vec2 rayLocalCoord = ivec2(rayAtlasCoord.x % RadianceProbeResolution, rayAtlasCoord.y % RadianceProbeResolution);
+    // Add back the half pixel to get pixel center normalized coordinates
+    return (rayLocalCoord + vec2(0.5f))*(2.0f / float(RadianceProbeResolution)) - vec2(1.0f, 1.0f);
+}
+
+void main() {
+
+    // 更新的纹理是IradianceProbe
+    ivec2 atlasCoord = ivec2(gl_FragCoord.xy);
+
+    ivec2 ProbeCoord = atlasCoord / RadianceProbeResolution;
+
+    uvec2 mark = RayMarker[ProbeCoord.y][ProbeCoord.x];
+
+    uint probeIndex = mark.x ;
+
+
+
+    if(probeIndex != INVALID_PROBE_INDEX){
+        
+        for(int i = 0; i < RadianceProbeResolution * RadianceProbeResolution; i++){
+            
+            ivec2 C = ivec2(i % RadianceProbeResolution, i / RadianceProbeResolution) + ProbeCoord * RadianceProbeResolution;
+            Vector3 rayDirection    = sampleTextureFetch(rayDirections, C, 0).xyz;
+            Color3  rayHitRadiance  = sampleTextureFetch(rayHitRadiance, C, 0).xyz * energyConservation;
+		    Point3  rayHitLocation  = sampleTextureFetch(rayHitLocations, C, 0).xyz;
+
+            Point3 probeLocation = sampleTextureFetch(rayOrigins, C, 0).xyz;
+            // Will be zero on a miss
+		    Vector3 rayHitNormal    = sampleTextureFetch(rayHitNormals, C, 0).xyz;
+            rayHitLocation += rayHitNormal * 0.01f;
+            float rayProbeDistance = min(maxDistance, length(probeLocation - rayHitLocation));
+            if (dot(rayHitNormal, rayHitNormal) < epsilon) {
+                rayProbeDistance = maxDistance;
+            }
+
+            vec3 texelDirection = octDecode(normalizedOctCoord(atlasCoord));
+            #if Radiance
+            float weight = max(0.0, dot(texelDirection, rayDirection));
+            #else
+            float weight = pow(max(0.0, dot(texelDirection, rayDirection)), depthSharpness);
+            #endif
+
+            if (weight >= epsilon) {
+            // Storing the sum of the weights in alpha temporarily
+#               if Radiance
+            result += vec4(rayHitRadiance * weight, weight);
+#               else
+            result += vec4(rayProbeDistance * weight,
+                square(rayProbeDistance) * weight,
+                0.0,
+                weight);
+#               endif
+        }
+            
+        }
+    }
+    if (result.w > epsilon) {
+        result.xyz /= result.w;
+        result.w = 1.0f - hysteresis;
+    }
+
+}
