@@ -137,20 +137,20 @@ void RadianceCache::onGraphics3D(RenderDevice* rd, const Array<shared_ptr<Surfac
 }
 
 void RadianceCache::debugDraw() {
-	shared_ptr<Image> radianceProbeWSPositionImg = RadianceProbeWorldPosition->toImage(ImageFormat::RGB32F());
-	Color4 c = NumRadianceProbe->readTexel(0,0);
+	//shared_ptr<Image> radianceProbeWSPositionImg = RadianceProbeWorldPosition->toImage(ImageFormat::RGB32F());
+	//Color4 c = NumRadianceProbe->readTexel(0,0);
 
-	int count = c.r;
-	const float radius = 0.015f;
-	for (int i = 0; i < count; ++i)
-	{
-		Color4 position;
-		radianceProbeWSPositionImg->get(Point2int32(i, 0), position);
-		Color3 color(0.f, 1.f, 1.f);
-		//color = Color3::fromASRGB(0xff007e);
+	//int count = c.r;
+	//const float radius = 0.015f;
+	//for (int i = 0; i < count; ++i)
+	//{
+	//	Color4 position;
+	//	radianceProbeWSPositionImg->get(Point2int32(i, 0), position);
+	//	Color3 color(0.f, 1.f, 1.f);
+	//	//color = Color3::fromASRGB(0xff007e);
 
-		::debugDraw(std::make_shared<SphereShape>((Vector3)position.rgb(), radius), 0.0f, color * 0.8f, Color4::clear());
-	}
+	//	::debugDraw(std::make_shared<SphereShape>((Vector3)position.rgb(), radius), 0.0f, color * 0.8f, Color4::clear());
+	//}
 }
 
 void RadianceCache::setupInputs(shared_ptr<Camera> active_camera, 

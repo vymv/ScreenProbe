@@ -187,7 +187,7 @@ public:
 	// Added
 	int									adaptiveProbeCount;
 	int									screenProbeDownsampleFactor = 16;
-
+	
 
 	void sampleAndShadeArbitraryRays
 	(RenderDevice*								rd,
@@ -248,7 +248,9 @@ public:
 	const int depthOctSideLength() {
 		return m_specification.depthOctResolution;
 	}
-
+	const float maxAdaptiveFactor() {
+		return m_specification.maxAdaptiveFactor;
+	}
 	//void setIrradianceOctSideLength(int sideLengthSize, RenderDevice* rd) {
 	//	m_specification.irradianceOctResolution = sideLengthSize;
 	//	generateIrradianceProbes(rd);

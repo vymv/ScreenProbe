@@ -201,10 +201,10 @@ Irradiance3 GetScreenProbeIrradiance(ivec2 screenProbeAltasCoord, float2 Irradia
     float probeSideWithBorder = 10.0f;
     float probeSide = 8.0f;
     float2 screenProbeAtlasBufferSize = float2(viewport_width/screenProbeDownsampleFactor,
-                                                viewport_height/screenProbeDownsampleFactor);
+                                                viewport_height * 1.5f/screenProbeDownsampleFactor);
     float2 IrradianceProbeUVCoord = IrradianceProbeUV * probeSide + 1.0f;
 	float2 AtlasUV = (screenProbeAltasCoord * probeSideWithBorder + IrradianceProbeUVCoord) / 
-                     (screenProbeAtlasBufferSize * probeSideWithBorder);
+                     (screenProbeAtlasBufferSize * probeSideWithBorder + 2.f);
 	//return ScreenProbeIrradianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, AtlasUV, 0).xyz;
     return texture(irradianceFieldSurface.irradianceProbeGridbuffer, AtlasUV).rgb;
 }
