@@ -13,6 +13,7 @@ class App : public GApp
 	bool m_staticProbe = true;
 	int frameCount = 0;
 	float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
+	
 
 	//shared_ptr<Texture> m_gbuffer_depth;
 	//shared_ptr<Texture> m_gbuffer_ws_normal;
@@ -23,6 +24,12 @@ class App : public GApp
 	shared_ptr<Texture> screenTileAdaptiveProbeHeaderTexture;
 	shared_ptr<Texture> screenTileAdaptiveProbeIndicesTexture;
 	shared_ptr<Texture> numAdaptiveScreenProbesTexture;
+	shared_ptr<GLPixelTransferBuffer> uniformPositionBuffer;
+	shared_ptr<GLPixelTransferBuffer> adaptiveProbeWSPosBuffer;
+	shared_ptr<GLPixelTransferBuffer> adaptiveProbeSSPosBuffer;
+	shared_ptr<GLPixelTransferBuffer> screenTileAdaptiveProbeHeaderBuffer;
+	shared_ptr<GLPixelTransferBuffer> screenTileAdaptiveProbeIndicesBuffer;
+	shared_ptr<GLPixelTransferBuffer> numAdaptiveScreenProbesBuffer;
 
 	RealTime last_view;
 protected:

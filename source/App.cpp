@@ -182,6 +182,7 @@ void App::makeGUI()
 	debugWindow->setRect(Rect2D::xywh(0, 0, (float)window()->width(), debugWindow->rect().height()));
 }
 
+
 void App::screenProbeAdaptivePlacement() {
 
 	//if (m_staticProbe) {
@@ -192,25 +193,35 @@ void App::screenProbeAdaptivePlacement() {
 		int minDownsampleFactor = 4;
 		// float maxAdaptiveFactor = 0.5f; // adaptive数量最多为uniform的0.5倍
 
-		// TODO： View Change Clean
-
+		
 		// RW Buffer
 		// World position
-		screenProbeWSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeWsPosition", m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
-		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeWSPosBuffer = GLPixelTransferBuffer::create(m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+		if (isNull(screenProbeWSAdaptivePositionTexture)) {
+			screenProbeWSAdaptivePositionTexture = Texture::createEmpty("ScreenProbe:AdaptiveProbeWsPosition", m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+			adaptiveProbeWSPosBuffer = GLPixelTransferBuffer::create(m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+		}
 		// Screen position
-		screenProbeSSAdaptivePositionTexture = Texture::createEmpty("AdaptiveProbeSsPosition", m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
-		shared_ptr<GLPixelTransferBuffer>& adaptiveProbeSSPosBuffer = GLPixelTransferBuffer::create(m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+		if (isNull(screenProbeSSAdaptivePositionTexture)) {
+			screenProbeSSAdaptivePositionTexture = Texture::createEmpty("ScreenProbe:AdaptiveProbeSsPosition", m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+			adaptiveProbeSSPosBuffer = GLPixelTransferBuffer::create(m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor * maxAdaptiveFactor, ImageFormat::RGBA32F());
+		}
 		// Header
-		screenTileAdaptiveProbeHeaderTexture = Texture::createEmpty("ScreenTileAdaptiveProbeHeader", m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor, ImageFormat::R32UI());
-		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeHeaderBuffer = GLPixelTransferBuffer::create(m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor, ImageFormat::R32UI());
+
+		if (isNull(screenTileAdaptiveProbeHeaderTexture)) {
+			screenTileAdaptiveProbeHeaderTexture = Texture::createEmpty("ScreenProbe:ScreenTileAdaptiveProbeHeader", m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor, ImageFormat::R32UI());
+			screenTileAdaptiveProbeHeaderBuffer = GLPixelTransferBuffer::create(m_settings.window.width / placementDownsampleFactor, m_settings.window.height / placementDownsampleFactor, ImageFormat::R32UI());
+		}
 		// Index
-		screenTileAdaptiveProbeIndicesTexture = Texture::createEmpty("ScreenTileAdaptiveProbeIndices", m_settings.window.width, m_settings.window.height, ImageFormat::R32UI());
-		shared_ptr<GLPixelTransferBuffer>& screenTileAdaptiveProbeIndicesBuffer = GLPixelTransferBuffer::create(m_settings.window.width, m_settings.window.height, ImageFormat::R32UI());
+		if (isNull(screenTileAdaptiveProbeIndicesTexture)) {
+			screenTileAdaptiveProbeIndicesTexture = Texture::createEmpty("ScreenProbe:ScreenTileAdaptiveProbeIndices", m_settings.window.width, m_settings.window.height, ImageFormat::R32UI());
+			screenTileAdaptiveProbeIndicesBuffer = GLPixelTransferBuffer::create(m_settings.window.width, m_settings.window.height, ImageFormat::R32UI());
+		}
+
 		// Num
-		numAdaptiveScreenProbesTexture = Texture::createEmpty("NumAdaptiveScreenProbes", 1, 1, ImageFormat::R32UI());
-		shared_ptr<GLPixelTransferBuffer>& numAdaptiveScreenProbesBuffer = GLPixelTransferBuffer::create(1, 1, ImageFormat::R32UI());
-		
+		if (isNull(numAdaptiveScreenProbesTexture)) {
+			numAdaptiveScreenProbesTexture = Texture::createEmpty("ScreenProbe:NumAdaptiveScreenProbes", 1, 1, ImageFormat::R32UI());
+			numAdaptiveScreenProbesBuffer = GLPixelTransferBuffer::create(1, 1, ImageFormat::R32UI());
+		}
 		do {
 			placementDownsampleFactor /= 2;
 			Args args;
@@ -255,20 +266,22 @@ void App::screenProbeAdaptivePlacement() {
 
 void App::screenProbeUniformPlacement(int downsampleFactor) {
 
-	//m_gbuffer_ws_position = m_gbuffer->texture(GBuffer::Field::WS_POSITION);
+	
+
 	Args args;
 
 	// GroupSize & GroupNum
-	const Vector3int32 blockSize(16, 16, 1);
-	args.setComputeGridDim(Vector3int32(iCeil(m_settings.window.width / (float(blockSize.x) * downsampleFactor)),
-		iCeil(m_settings.window.height / (float(blockSize.y) * downsampleFactor)), 1));
+	const Vector3int32 blockSize(10, 10, 1);
+	args.setComputeGridDim(Vector3int32(m_settings.window.width / (blockSize.x * downsampleFactor),
+		m_settings.window.height / (blockSize.y * downsampleFactor), 1));
 	args.setComputeGroupSize(blockSize);
-
+	
 	// IO Variable
-	screenProbeWSUniformPositionTexture = Texture::createEmpty("UniformProbeWsPosition", m_settings.window.width / downsampleFactor, m_settings.window.height / downsampleFactor, ImageFormat::RGBA32F());
-	const shared_ptr<GLPixelTransferBuffer>& outputBuffer = GLPixelTransferBuffer::create(m_settings.window.width / downsampleFactor, m_settings.window.height / downsampleFactor, ImageFormat::RGBA32F());
-
-	outputBuffer->bindAsShaderStorageBuffer(0);
+	if (isNull(screenProbeWSUniformPositionTexture)){
+		screenProbeWSUniformPositionTexture = Texture::createEmpty("ScreenProbe:UniformProbeWsPosition", m_settings.window.width / downsampleFactor, m_settings.window.height / downsampleFactor, ImageFormat::RGBA32F());
+		uniformPositionBuffer = GLPixelTransferBuffer::create(m_settings.window.width / downsampleFactor, m_settings.window.height / downsampleFactor, ImageFormat::RGBA32F());
+	}
+	uniformPositionBuffer->bindAsShaderStorageBuffer(0);
 	args.setUniform("placementDownsampleFactor", downsampleFactor);
 	args.setUniform("viewport_width", (float)m_settings.window.width);
 	args.setUniform("viewport_height", (float)m_settings.window.height);
@@ -279,7 +292,7 @@ void App::screenProbeUniformPlacement(int downsampleFactor) {
 	// Run the uniform shader
 	LAUNCH_SHADER("shaders/ScreenProbeUniformPlacement.glc", args);
 
-	screenProbeWSUniformPositionTexture->update(outputBuffer);
+	screenProbeWSUniformPositionTexture->update(uniformPositionBuffer);
 }
 
 

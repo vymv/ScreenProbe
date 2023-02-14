@@ -47,7 +47,7 @@ void CGIRenderer::renderDeferredShading(RenderDevice * rd, const Array<shared_pt
 		environment.setShaderArgs(args);
 		gbuffer->setShaderArgsRead(args, "gbuffer_");
 		args.setRect(rd->viewport());
-
+			
 		args.setUniform("matteIndirectBuffer", notNull(m_pGIFramebuffer) ? m_pGIFramebuffer->texture(0) : Texture::opaqueBlack(), Sampler::buffer());
 
 		args.setMacro("OVERRIDE_SKYBOX", true);

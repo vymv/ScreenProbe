@@ -570,6 +570,7 @@ void IrradianceField::updateIrradianceProbe(RenderDevice* rd, bool irradiance)
 		//会造成拖影，但不混合会因为random ray造成抖动，需要新的方案
 		
 		rd->setBlendFunc(RenderDevice::BLEND_SRC_ALPHA, RenderDevice::BLEND_ONE_MINUS_SRC_ALPHA);
+		//rd->setBlendFunc(RenderDevice::BLEND_ONE, RenderDevice::BLEND_ZERO);
 		// Set the depth test to discard the border pixels
 		rd->setDepthTest(RenderDevice::DepthTest::DEPTH_GREATER);
 		Args args;

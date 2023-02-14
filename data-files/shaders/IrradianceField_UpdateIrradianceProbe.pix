@@ -52,7 +52,6 @@ vec2 normalizedOctCoord(ivec2 fragCoord) {
 
 void main() {
 
-    // 更新的纹理是IradianceProbe
     int relativeProbeID = probeID(gl_FragCoord.xy);
 
     if (relativeProbeID == -1) {
